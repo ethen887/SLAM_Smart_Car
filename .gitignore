@@ -26,6 +26,13 @@ cmake-build-*/
 compile_commands.json
 CMakeCache.txt
 CMakeFiles/
+# CMake personal presets and generated Ninja state
+# Keep CMakePresets.json, CMakeLists.txt and cmake/ toolchain sources.
+CMakeUserPresets.json
+.ninja_deps
+.ninja_log
+build.ninja
+cmake_install.cmake
 # Keil user state; retain .uvprojx / .uvoptx
 *.uvguix.*
 *.uvgui.*
