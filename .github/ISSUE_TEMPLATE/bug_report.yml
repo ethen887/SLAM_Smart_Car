@@ -1,0 +1,40 @@
+name: Bug 缺陷
+description: 记录软件、板级或实车问题，附复现步骤和证据。
+title: "[Bug] "
+body:
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境与版本
+      description: MCU 完整型号、板卡版本、IDE/编译器/SDK 版本、固件 commit、供电和接线。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 按顺序写出操作、输入和出现频率。
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: 预期与实际结果
+      description: 附串口日志、波形、照片或视频；涉及电机时说明急停是否有效。
+    validations:
+      required: true
+  - type: dropdown
+    id: impact
+    attributes:
+      label: 影响程度
+      options:
+        - P2 一般问题
+        - P1 阻塞开发或关键功能
+        - P0 失控、碰撞风险或比赛阻断
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 修复验收与补充信息
+      description: 回归场景、临时绕过方法、关联 Issue/PR。

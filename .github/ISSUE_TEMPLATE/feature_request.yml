@@ -1,0 +1,30 @@
+name: Feature 功能
+description: 先明确需求、接口和验收，再开始实现。
+title: "[Feature] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 目标与使用场景
+      description: 要解决什么问题，对比赛有什么价值？
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 范围与接口
+      description: 涉及哪些模块？引脚、定时器、DMA、中断、协议有何变化？明确不做的内容。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 可验证的验收标准
+      description: 给出输入、预期输出及阈值；说明主机、板级、实车测试如何验证。
+    validations:
+      required: true
+  - type: textarea
+    id: plan
+    attributes:
+      label: 实施与分工
+      description: 负责人、依赖、RAM/Flash/周期预算；由另一人确认接口和验收标准。

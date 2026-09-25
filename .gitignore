@@ -1,55 +1,63 @@
-# Prerequisites
-*.d
-
-# Object files
+# Build outputs; retain IDE projects, linker scripts and vendor libraries
+build/
+Build/
+Debug/
+Release/
+Objects/
+Listings/
+out/
+cmake-build-*/
 *.o
-*.ko
 *.obj
+*.d
 *.elf
-
-# Linker output
-*.ilk
-*.map
-*.exp
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
+*.axf
 *.out
-*.app
-*.i*86
-*.x86_64
 *.hex
-
-# Debug files
-*.dSYM/
+*.bin
+*.srec
+*.s19
+*.mot
+*.map
+*.lst
 *.su
-*.idb
-*.pdb
-
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
-
-# debug information files
-*.dwo
+*.gcda
+*.gcno
+compile_commands.json
+CMakeCache.txt
+CMakeFiles/
+# Keil user state; retain .uvprojx / .uvoptx
+*.uvguix.*
+*.uvgui.*
+*.bak
+*.dep
+*.crf
+*.lnp
+# IAR user state; retain .ewp / .eww / .ewd
+*.ewt
+*.depinfo
+# CubeIDE / e2 studio workspace state; retain .project / .cproject / .settings
+.metadata/
+.recommenders/
+JLinkLog.txt
+JLinkSettings.ini
+# Local editor and OS state
+.vs/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+__pycache__/
+*.py[cod]
+.venv/
+# Local secrets; examples may be committed
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# Do not globally ignore .a / .lib: SDKs may require these libraries.
+# Attach release firmware to GitHub Releases instead of committing it.
