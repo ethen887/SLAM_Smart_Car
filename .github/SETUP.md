@@ -28,10 +28,10 @@
 
 工作流使用 `pull_request`，令牌只读，不读取 Secrets，不自动烧录，不自动批准或合并 PR。第三方 Action 固定到完整 commit，Dependabot 每月提出更新 PR。不要改成带写权限执行 PR 代码的 `pull_request_target`。参见 [GitHub Actions 安全说明](https://docs.github.com/en/actions/reference/security/secure-use)。
 
-初次运行只做已有检查；没有固件代码时 C 检查会显示跳过。新增板级编译 job 后，待它首次成功，再把该 job 加入 Required status checks。不要对必需工作流加 paths 过滤而使检查一直 Pending。
+CI 当前只做基本 PR 规范检查和规则脚本单元测试。以后如增加新的检查，可在团队确认后再决定是否将其设为 Required status check。
 
 ## 设置后的验收
 
 开一个测试分支和 PR：不规范标题应检查失败，修改标题后应重跑并通过。确认缺少另一人的 Approve 时不能合并，新增代码提交后旧批准失效，未通过 `quality` 时不能合并。验证完关闭测试 PR 并删除测试分支。
 
-Issue 表单从默认分支加载，所以配置合并后再检查 New issue 中的 Bug / Feature / Task 三个入口。PR 模板检查硬件证据的填写情况由审核人负责，机器人不推断实车是否通过。
+Issue 表单从默认分支加载，所以配置合并后再检查 New issue 中的 Bug / Feature / Task 三个入口。
