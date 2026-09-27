@@ -6,7 +6,7 @@
 
 1. 在 Settings → Collaborators 中邀请另一位开发者并授予写入权限。双方都应能请求和提交 Review。
 2. 确认默认分支是 `main`，启用 Issues 和 Actions。
-3. 将本次配置通过 `chore/setup-workflow` 或 `codex/setup-workflow` 分支提交，PR 标题用 `chore: 建立双人开发流程`，由另一人审核。先让 CI 成功运行一次，便于后续选择状态检查。
+3. 将本次配置通过任意短期分支提交并创建 PR，由另一人审核。先让 CI 成功运行一次，便于后续选择状态检查。
 4. Settings → General → Pull Requests：启用 Squash merging，默认 squash 标题取 PR 标题；关闭另外两种合并方式；启用合并后删除分支。
 5. Settings → Rules → Rulesets 建立启用状态的分支规则，目标为 `main`；也可使用 Branch protection 实现同等限制，不必重复配置。
 
@@ -28,10 +28,10 @@
 
 工作流使用 `pull_request`，令牌只读，不读取 Secrets，不自动烧录，不自动批准或合并 PR。第三方 Action 固定到完整 commit，Dependabot 每月提出更新 PR。不要改成带写权限执行 PR 代码的 `pull_request_target`。参见 [GitHub Actions 安全说明](https://docs.github.com/en/actions/reference/security/secure-use)。
 
-CI 当前只做基本 PR 规范检查和规则脚本单元测试。以后如增加新的检查，可在团队确认后再决定是否将其设为 Required status check。
+CI 当前不检查分支名、PR 标题或代码，只提供基础 `quality` 状态。以后如增加新的检查，可在团队确认后再决定是否将其设为 Required status check。
 
 ## 设置后的验收
 
-开一个测试分支和 PR：不规范标题应检查失败，修改标题后应重跑并通过。确认缺少另一人的 Approve 时不能合并，新增代码提交后旧批准失效，未通过 `quality` 时不能合并。验证完关闭测试 PR 并删除测试分支。
+开一个测试分支和 PR：确认任意 GitHub 可接受的分支名和 PR 标题都能通过 `quality`。同时确认缺少另一人的 Approve 时不能合并，新增代码提交后旧批准失效。验证完关闭测试 PR 并删除测试分支。
 
 Issue 表单从默认分支加载，所以配置合并后再检查 New issue 中的 Bug / Feature / Task 三个入口。

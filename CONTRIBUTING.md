@@ -12,24 +12,20 @@
 6. 所有检查通过、讨论解决、另一人批准后，由作者 Squash and merge；合并标题沿用 PR 标题。删除已合并分支。
 7. `Closes #编号` 在 PR 合并到默认分支后关闭 Issue。跨多个 PR 的任务只在最终 PR 中写 Closes，其他 PR 写 Refs。
 
-不要直接提交或推送 `main`；不要自审自合；不要在共享分支强推。紧急修复仍走 `fix/` 分支和另一人审核。比赛现场可以临时停用功能或退回已验证版本，事后记录现象与版本，不跳过修复 PR。
+不要直接提交或推送 `main`；不要自审自合；不要在共享分支强推。紧急修复仍走独立分支和另一人审核。比赛现场可以临时停用功能或退回已验证版本，事后记录现象与版本，不跳过修复 PR。
 
-## 分支、PR 与提交命名
+## 分支、PR 与提交
 
-- 分支：`feat/12-encoder`、`fix/23-uart-overflow`、`docs/wiring`；自动辅助开发可用 `codex/setup-workflow`。
-- 类型：`feat` 新功能、`fix` 修复、`docs` 文档、`refactor` 重构、`test` 测试、`build` 构建、`ci` 自动化、`chore` 维护。
-- PR 标题：`类型(可选模块): 简述`，例如 `feat(stm32): 增加编码器采样`。模块用小写英文、数字、下划线或连字符；描述可用中文。
-- 提交信息推荐同样格式；CI 强制 PR 标题与分支前缀，不强制中间提交格式。Squash 后保留清晰的主线历史。
-- Dependabot PR 免除人工命名规则，仍需 CI 和人工审核，不自动合并。
+仓库不规定分支名、PR 标题或提交信息的格式；只要名称能被 Git 和 GitHub 接受即可。Dependabot PR 仍需 CI 和人工审核，不自动合并。
 
 ```sh
 git switch main
 git pull --ff-only
-git switch -c feat/12-encoder
+git switch -c <分支名>
 # 修改、自测，然后只添加本次相关文件
 git add <相关文件>
-git commit -m "feat(stm32): 增加编码器采样"
-git push -u origin feat/12-encoder
+git commit -m "<提交说明>"
+git push -u origin <分支名>
 ```
 
 PR 落后主线时，在任务分支执行 `git fetch origin`、`git merge origin/main`，解决冲突并重新测试后推送。新的代码提交需要重新审核。
@@ -44,11 +40,7 @@ Issue 正文写清环境、范围和可验证的完成标准。负责人在评�
 
 开发者根据改动范围自行选择合适的编译、测试或板级验证，并在 PR 中简要记录实际执行过的项目。尚未完成验证时可保持 Draft，CI 结果不代表固件编译或硬件验证已经通过。
 
-CI 当前只执行 PR 基本规范检查和规则脚本单元测试，不检查 C 语言版本、代码格式、静态分析、目录结构或 MCU 构建。
-
-```sh
-python -m unittest discover -s tools/ci -p "test_*.py" -v
-```
+CI 当前不检查分支名、PR 标题、提交信息、C 语言版本、代码格式、静态分析、目录结构或 MCU 构建，只保留一个基础状态作业供分支保护使用。
 
 ## 比赛版本与回退
 
