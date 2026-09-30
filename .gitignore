@@ -59,5 +59,6 @@ __pycache__/
 !.env.example
 *.pem
 *.key
+*.vscode/
 # Do not globally ignore .a / .lib: SDKs may require these libraries.
 # Attach release firmware to GitHub Releases instead of committing it.
