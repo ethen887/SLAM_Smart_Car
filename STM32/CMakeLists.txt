@@ -38,6 +38,7 @@ add_executable(${CMAKE_PROJECT_NAME})
 add_subdirectory(cmake/stm32cubemx)
 add_subdirectory(Algorithm)
 add_subdirectory(Bsp)
+add_subdirectory(Device)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -67,6 +68,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
     bsp
     algorithm
+    device
 
     # Add user defined libraries
 )
