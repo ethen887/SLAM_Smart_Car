@@ -55,6 +55,7 @@ void DebugMon_Handler(void);
 void CAN1_RX1_IRQHandler(void);
 void TIM2_IRQHandler(void);
 void TIM4_IRQHandler(void);
+void SPI2_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */
