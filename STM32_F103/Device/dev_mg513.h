@@ -30,7 +30,7 @@ typedef struct
 }MG513_HandleTypeDef;
 
 void Dev_MG513_Init(MG513_HandleTypeDef *motor);
-void Dev_MG513_Control(MG513_HandleTypeDef *motor, int16_t pwm_value, MG513_State state);
+void Dev_MG513_Control(MG513_HandleTypeDef *motor, uint32_t pwm_value, MG513_State state);
 MG513_HandleTypeDef *MG513_Register(TIM_HandleTypeDef *pwm_timer,
                                     uint32_t pwm_channel,
                                     TIM_HandleTypeDef *encoder_timer,

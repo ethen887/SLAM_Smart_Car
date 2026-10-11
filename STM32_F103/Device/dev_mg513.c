@@ -39,7 +39,7 @@ void Dev_MG513_Init(MG513_HandleTypeDef *motor)
     HAL_TIM_Encoder_Start(motor->encoder_timer, TIM_CHANNEL_ALL);
 }
 
-void Dev_MG513_Control(MG513_HandleTypeDef *motor, int16_t pwm_value, MG513_State state)
+void Dev_MG513_Control(MG513_HandleTypeDef *motor, uint32_t pwm_value, MG513_State state)
 {
     switch (state)
     {
@@ -63,7 +63,6 @@ void Dev_MG513_Control(MG513_HandleTypeDef *motor, int16_t pwm_value, MG513_Stat
             return; // 无效状态，直接返回
     }
     // 设置 PWM 占空比
-    if (pwm_value < 0) pwm_value = 0;
     uint32_t pwm_max = __HAL_TIM_GET_AUTORELOAD(motor->pwm_timer);
     if (pwm_value > pwm_max) pwm_value = pwm_max;
     __HAL_TIM_SET_COMPARE(motor->pwm_timer, motor->pwm_channel, pwm_value);
