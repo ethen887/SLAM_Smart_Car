@@ -160,8 +160,7 @@ bool Dev_Ps2_Read(void)
         return true;
     }
 
-    // 读取失败时清除旧数据，避免上层继续使用过期控制量。
-    Ps2_ResetData();
+    // 读取失败时，保留上一次有效数据，避免误动作。
     return false;
 }
 

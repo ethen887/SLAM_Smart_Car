@@ -1,8 +1,8 @@
 #include "alg_pid.h"
 #include <math.h>
-#include "robot_config.h"
 #include <string.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 PidInstance_s *Pid_Register(PidInitConfig_s *config)
 {
@@ -10,7 +10,7 @@ PidInstance_s *Pid_Register(PidInitConfig_s *config)
         // 配置参数错误
         return NULL;
     }
-    PidInstance_s *pid_instance = (PidInstance_s *)user_malloc(sizeof(PidInstance_s));
+    PidInstance_s *pid_instance = (PidInstance_s *)malloc(sizeof(PidInstance_s));
     if(pid_instance == NULL){
         return NULL;
     }

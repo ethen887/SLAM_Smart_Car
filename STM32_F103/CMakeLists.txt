@@ -29,7 +29,7 @@ add_executable(${CMAKE_PROJECT_NAME})
 add_subdirectory(cmake/stm32cubemx)
 
 # User modules
-#add_subdirectory(Algorithm)
+add_subdirectory(Algorithm)
 #add_subdirectory(Bsp)
 add_subdirectory(Device)
 add_subdirectory(App)
@@ -56,7 +56,7 @@ list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 # Link CubeMX and user modules
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
-    #algorithm
+    algorithm
     #bsp
     device
     app

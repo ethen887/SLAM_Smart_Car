@@ -2,6 +2,9 @@
 #define __APP_MOVE_H
 #include "dev_mg513.h"
 #include "dev_ps2.h"
+#include "cmsis_os2.h"
+
+#define MOVE_TASK_UPDATE_FLAG (1UL << 0)
 
 typedef enum
 {
@@ -15,13 +18,15 @@ typedef enum
 
 typedef struct
 {
-    float forward;
-    float left;
-    float turn;
+    float stright; // 前进/后退控制量，范围 [-1, 1]
+    float turn;    // 左转/右转控制量，范围 [-1, 1]
 } App_ChassisCommand_t;
 
 void App_Move_Init(void);
-void App_Move_Control(Move_Direction direction, uint32_t pwm_value);
+void App_Move_Control(Move_Direction direction, float target_speed);
 void App_Move_Stop(void);
 bool App_Move_ControlChassis(const Ps2Data_t *data);
+extern osThreadId_t move_task_handle; // 电机控制任务句柄
+extern MG513_HandleTypeDef *left_motor;
+extern MG513_HandleTypeDef *right_motor;
 #endif

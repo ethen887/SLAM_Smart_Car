@@ -61,6 +61,13 @@ const osThreadAttr_t Move_Task_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for RmoteTsk */
+osThreadId_t RmoteTskHandle;
+const osThreadAttr_t RmoteTsk_attributes = {
+  .name = "RmoteTsk",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -69,6 +76,7 @@ const osThreadAttr_t Move_Task_attributes = {
 
 void StartDefaultTask(void *argument);
 extern void StartMoveTask(void *argument);
+extern void StartRemoteTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -104,6 +112,9 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of Move_Task */
   Move_TaskHandle = osThreadNew(StartMoveTask, NULL, &Move_Task_attributes);
+
+  /* creation of RmoteTsk */
+  RmoteTskHandle = osThreadNew(StartRemoteTask, NULL, &RmoteTsk_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
