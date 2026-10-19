@@ -40,10 +40,12 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
 # Additional source files
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+    Drivers/LSM6DSR/lsm6dsr_reg.c    # ST官方LSM6DSR寄存器驱动
 )
 
 # Additional include directories
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/LSM6DSR
 )
 
 # Additional compile definitions

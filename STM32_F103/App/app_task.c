@@ -3,6 +3,8 @@
 #include "app_move.h"
 #include "dev_ps2.h"
 #include "dev_mg513.h"
+#include "dev_lsm6dsr.h"
+#include "app_imu_log.h"
 #include "tim.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -15,6 +17,9 @@
 // 最近一次成功接收PS2数据的时间
 static uint32_t ps2_last_valid_tick = 0;
 static bool ps2_has_valid_data = false;
+
+// 实际控制任务间隔，供 Watch 检查；正常约为 0.010s。
+volatile float move_task_dt_s;
 
 /**
  * @brief 毫秒转换为FreeRTOS Tick，向上取整
@@ -38,6 +43,10 @@ void StartMoveTask(void *argument)
 
     App_Move_Init();
     App_Move_Stop();
+
+    // 外设已由 main 初始化；IMU 失败不阻止原有电机任务运行。
+    Dev_Lsm6dsr_Init();
+    App_ImuLog_Init();
 
     const uint32_t tick_hz = osKernelGetTickFreq();
     if (tick_hz == 0U) return;
@@ -71,6 +80,7 @@ void StartMoveTask(void *argument)
 
         last_tick = now;
         float dt = (float)elapsed / (float)tick_hz;
+        move_task_dt_s = dt;
 
         // 更新左右电机角度、速度
         Dev_MG513_Update(left_motor, dt);
@@ -89,14 +99,17 @@ void StartMoveTask(void *argument)
         if (!valid || (uint32_t)(now - last_valid_tick) >= timeout_ticks)
         {
             App_Move_Stop();
-            continue;
         }
-
         // 使用最新的PS2数据执行底盘控制
-        if (!App_Move_ControlChassis(&ps2_data))
+        else if (!App_Move_ControlChassis(&ps2_data))
         {
             App_Move_Stop();
         }
+
+        // 每 10ms 有上限地取出 FIFO 积压样本；未连接手柄也采集。
+        // IMU 保持 104Hz，样本间隔由设备接口提供，不使用电机控制 dt。
+        Dev_Lsm6dsr_Update();
+        App_ImuLog_UpdateStatus(dt);
     }
 }
 

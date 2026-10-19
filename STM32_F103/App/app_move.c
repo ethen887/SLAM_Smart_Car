@@ -6,6 +6,8 @@
 #define PS2_AXIS_DEADZONE        10U
 #define CHASSIS_INPUT_DEADZONE   0.05f
 #define MAX_TURNSPEED_RATE       0.15f // 最大转向速度占最大前进速度的比例
+// TIM1 为 72MHz / (0+1) / (7199+1) = 10kHz；每 100 次更新通知一次，即 10ms。
+#define MOVE_TASK_NOTIFY_DIVIDER 100U
 
 Move_Direction direction = MOVE_STOP;
 
@@ -276,25 +278,21 @@ static void App_Move_NotifyFromISR(void)
     }
 }
 
-/*
- * @brief TIM 中断回调函数。
+/**
+ * @brief 处理运动控制定时器的周期通知。
  * @param htim 定时器句柄。
- * @note  这个函数本来是由CubeMX自动生成放在main.c下的, 但是这里要用到这个函数, 所以把它剪切过来了
+ * @note 由 main.c 的 HAL 回调调用，HAL 时基仍由生成代码维护。
  */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+void App_Move_TimerElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  /* USER CODE BEGIN Callback 0 */
+    static uint16_t update_count;
 
-  /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM4)
-  {
-    HAL_IncTick();
-  }
-  /* USER CODE BEGIN Callback 1 */
-  // 下面是自己添加的代码, 用于在 TIM1 更新中断时通知电机控制任务. 上面那些是CubeMX自动生成的代码, 不能删除!
     if (htim->Instance == TIM1)
     {
-        App_Move_NotifyFromISR();
+        if (++update_count >= MOVE_TASK_NOTIFY_DIVIDER)
+        {
+            update_count = 0U;
+            App_Move_NotifyFromISR();
+        }
     }
-  /* USER CODE END Callback 1 */
 }
