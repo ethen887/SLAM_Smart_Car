@@ -51,6 +51,7 @@ JLinkSettings.ini
 Thumbs.db
 Desktop.ini
 __pycache__/
+logs/imu/
 *.py[cod]
 .venv/
 # Local secrets; examples may be committed

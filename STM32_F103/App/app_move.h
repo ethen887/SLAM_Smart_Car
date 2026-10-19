@@ -26,6 +26,8 @@ void App_Move_Init(void);
 void App_Move_Control(Move_Direction direction, float target_speed);
 void App_Move_Stop(void);
 bool App_Move_ControlChassis(const Ps2Data_t *data);
+/** @brief 从 HAL 定时器回调转发 TIM1 的任务通知。 */
+void App_Move_TimerElapsedCallback(TIM_HandleTypeDef *htim);
 extern osThreadId_t move_task_handle; // 电机控制任务句柄
 extern MG513_HandleTypeDef *left_motor;
 extern MG513_HandleTypeDef *right_motor;
