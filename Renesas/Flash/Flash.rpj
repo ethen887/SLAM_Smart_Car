@@ -7,7 +7,7 @@
   <OperationTab>
     <Endian>RFLG_ENDIAN_LITTLE</Endian>
     <ProgramFiles>
-      <Item Address="00000000" Type="IHEX">C:\aWorkspace\project-ra8p1\SLAM_Smart_Car\Renesas\micro_ROS_project\build\Debug\micro_ROS_project.hex</Item>
+      <Item Address="00000000" Type="IHEX">C:\aWorkspace\project-ra8p1\SLAM_Smart_Car\Renesas\TinySLAM\3.LSLidar\build\Debug\LSLidar.hex</Item>
     </ProgramFiles>
   </OperationTab>
   <OperationSettingTab>
