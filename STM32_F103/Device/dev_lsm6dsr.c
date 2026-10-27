@@ -31,14 +31,12 @@ static int32_t Lsm6dsr_ReadReg(void *handle, uint8_t reg, uint8_t *buf, uint16_t
 #if LSM6DSR_FIFO_SPLIT_READ
     if (reg == LSM6DSR_FIFO_DATA_OUT_TAG && len == 7U) {
         // 保持同一 FIFO 项的读取顺序：TAG、X、Y、Z，最后读取 Z_H 才完成该项。
-        // 针对实板 Z_L/Z_H 重复的现象，用短事务排查多字节接收收尾时序。
-        for (uint16_t offset = 0U; offset < len; ) {
-            const uint16_t size = offset == 0U ? 1U : 2U;
+        // 实板两字节事务也出现高低字节重复，因此每个寄存器均独立单字节读取。
+        for (uint16_t offset = 0U; offset < len; ++offset) {
             lsm6dsr_hal_status = HAL_I2C_Mem_Read(handle, LSM6DSR_I2C_ADDR_HAL,
                                                 reg + offset, I2C_MEMADD_SIZE_8BIT,
-                                                buf + offset, size, LSM6DSR_I2C_TIMEOUT_MS);
+                                                buf + offset, 1U, LSM6DSR_I2C_TIMEOUT_MS);
             if (lsm6dsr_hal_status != HAL_OK) return -1;
-            offset += size;
         }
         return 0;
     }
@@ -90,20 +88,32 @@ static int32_t Lsm6dsr_RestartFifo(void)
     return lsm6dsr_fifo_mode_set(&lsm6dsr_ctx, LSM6DSR_STREAM_MODE);
 }
 
-/** @brief 同一次读取取得 FIFO 数量及溢出状态，避免清除后遗漏锁存溢出。 */
+/** @brief 单字节读取 FIFO 状态，校验高位稳定并保留每次读取的溢出标志。 */
 static int32_t Lsm6dsr_FifoStatus(uint16_t *level, bool *overrun)
 {
-    uint8_t raw[2];
-    lsm6dsr_fifo_status2_t status;
+    uint8_t low, high_before, high_after;
+    lsm6dsr_fifo_status2_t before, after;
+    *overrun = false;
 
-    // 官方数量接口会读取并清除 STATUS2 的锁存位，但不返回该位，故一起解析。
-    if (lsm6dsr_read_reg(&lsm6dsr_ctx, LSM6DSR_FIFO_STATUS1, raw, sizeof(raw)) != 0) {
-        return -1;
+    // 实板两字节状态读取出现 0x0202/0x0101，不能再将重复字节当作 FIFO 高位。
+    // 先高、再低、再高：防止新增样本使计数跨 256 时拼出错误数量。
+    for (unsigned attempt = 0U; attempt < 3U; ++attempt) {
+        if (lsm6dsr_read_reg(&lsm6dsr_ctx, LSM6DSR_FIFO_STATUS2, &high_before, 1U) != 0 ||
+            lsm6dsr_read_reg(&lsm6dsr_ctx, LSM6DSR_FIFO_STATUS1, &low, 1U) != 0 ||
+            lsm6dsr_read_reg(&lsm6dsr_ctx, LSM6DSR_FIFO_STATUS2, &high_after, 1U) != 0) {
+            return -1;
+        }
+        memcpy(&before, &high_before, sizeof(before));
+        memcpy(&after, &high_after, sizeof(after));
+        // STATUS2 含读清的锁存位，每一次读取都必须合并，重试也不能丢掉。
+        *overrun |= before.fifo_ovr_ia || before.over_run_latched ||
+                    after.fifo_ovr_ia || after.over_run_latched;
+        if (before.diff_fifo == after.diff_fifo) {
+            *level = ((uint16_t)after.diff_fifo << 8) | low;
+            return 0;
+        }
     }
-    memcpy(&status, &raw[1], sizeof(status));
-    *level = ((uint16_t)status.diff_fifo << 8) | raw[0];
-    *overrun = status.fifo_ovr_ia || status.over_run_latched;
-    return 0;
+    return -1;
 }
 
 /** @brief 记录中断并推迟到下一轮清空 FIFO；本轮整批数据不发布。 */

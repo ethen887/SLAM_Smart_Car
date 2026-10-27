@@ -5,6 +5,9 @@
 #include "dev_mg513.h"
 #include "dev_lsm6dsr.h"
 #include "app_imu_log.h"
+#include "app_attitude.h"
+#include "app_odometry.h"
+#include "app_test_run.h"
 #include "tim.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -46,7 +49,10 @@ void StartMoveTask(void *argument)
 
     // 外设已由 main 初始化；IMU 失败不阻止原有电机任务运行。
     Dev_Lsm6dsr_Init();
+    App_Attitude_Init();
     App_ImuLog_Init();
+    App_Odometry_Init();
+    App_TestRun_Init();
 
     const uint32_t tick_hz = osKernelGetTickFreq();
     if (tick_hz == 0U) return;
@@ -61,6 +67,8 @@ void StartMoveTask(void *argument)
     __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_UPDATE);
 
     uint32_t last_tick = osKernelGetTickCount();
+    int64_t last_left = 0, last_right = 0;
+    bool have_wheel_baseline = false;
 
     for (;;)
     {
@@ -86,6 +94,27 @@ void StartMoveTask(void *argument)
         Dev_MG513_Update(left_motor, dt);
         Dev_MG513_Update(right_motor, dt);
 
+        // IMU FIFO 先于里程计处理；静止标志只用于启动零偏校准。
+        bool stationary = false;
+        if (left_motor != NULL && right_motor != NULL) {
+            int64_t l = left_motor->encoder_count, r = right_motor->encoder_count;
+            stationary = have_wheel_baseline && l-last_left >= -2 && l-last_left <= 2 &&
+                         r-last_right >= -2 && r-last_right <= 2;
+            last_left=l; last_right=r; have_wheel_baseline=true;
+        }
+        App_Attitude_SetStationary(stationary);
+        Dev_Lsm6dsr_Update();
+        App_ImuLog_UpdateStatus(dt);
+        float yaw_delta = 0.0f;
+        bool imu_valid = App_Attitude_TakeYawDelta(dt,
+            lsm6dsr_fifo_debug.status >= LSM6DSR_UPDATE_EMPTY &&
+            lsm6dsr_fifo_debug.level_after <= 2U, &yaw_delta);
+
+        // 同一周期轮增量和可用的 IMU 航向增量共同积分。
+        if (left_motor != NULL && right_motor != NULL) {
+            App_Odometry_UpdateImu(left_motor->encoder_count, right_motor->encoder_count, dt, imu_valid, yaw_delta);
+        }
+
         // 获取PS2通信状态及最近一次成功接收时间
         bool valid;
         uint32_t last_valid_tick;
@@ -95,21 +124,20 @@ void StartMoveTask(void *argument)
         last_valid_tick = ps2_last_valid_tick;
         taskEXIT_CRITICAL();
 
-        // 未收到有效数据或通信超时，停止电机
-        if (!valid || (uint32_t)(now - last_valid_tick) >= timeout_ticks)
-        {
-            App_Move_Stop();
-        }
-        // 使用最新的PS2数据执行底盘控制
-        else if (!App_Move_ControlChassis(&ps2_data))
-        {
-            App_Move_Stop();
+        // 实验占用控制时由固件闭环执行，L2 可中止；否则保持原手柄逻辑。
+        const bool emergency_stop = ps2_data.valid &&
+            (ps2_data.mode == 0x73U || ps2_data.mode == 0x79U) &&
+            (ps2_data.buttons & PS2_BTN_L2) == 0U;
+        if (!App_TestRun_Update(dt, emergency_stop)) {
+            if (!valid || (uint32_t)(now - last_valid_tick) >= timeout_ticks) {
+                App_Move_Stop();
+            }
+            else if (!App_Move_ControlChassis(&ps2_data)) {
+                App_Move_Stop();
+            }
         }
 
-        // 每 10ms 有上限地取出 FIFO 积压样本；未连接手柄也采集。
-        // IMU 保持 104Hz，样本间隔由设备接口提供，不使用电机控制 dt。
-        Dev_Lsm6dsr_Update();
-        App_ImuLog_UpdateStatus(dt);
+        App_TestRun_Log(dt);
     }
 }
 

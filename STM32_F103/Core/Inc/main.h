@@ -70,6 +70,12 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 
+// PA5 仍配置为电机方向输出，补回生成代码中缺失的 AIN2 名称。
+#ifndef AIN2_Pin
+#define AIN2_Pin GPIO_PIN_5
+#define AIN2_GPIO_Port GPIOA
+#endif
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

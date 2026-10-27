@@ -6,7 +6,7 @@
 离线验证：python tools/imu/capture_imu.py --simulate --duration 2
 
 默认日志位置为仓库 logs/imu/时间戳：samples.csv、state.csv、metadata.json、summary.json。
-每条样本是加速度或陀螺仪三轴；单位分别为 m/s²、rad/s。dt 来自标称 ODR。
+每条样本是加速度或陀螺仪三轴；单位分别为 m/s²、rad/s。sample_dt_s 优先来自工厂频率修正；同时保存原始值与滤波值。
 read_tick_ms 是固件发布时刻，host_elapsed_s 是主机读取时刻，都不是硬件采样时间戳。
 state.csv 是主机轮询时的状态快照，不保证记录每一次任务状态变化。
 采集时目标必须运行；不主动复位或烧录。--resume 可继续已暂停的 CPU。
@@ -27,7 +27,9 @@ import time
 
 ROOT = Path(__file__).resolve().parents[2]
 HEADER = struct.Struct("<7IiIi11If")
-RECORD = struct.Struct("<5I4f")
+RECORD_V1 = struct.Struct("<5I4f")
+RECORD = struct.Struct("<5I7f")
+RECORD_FORMATS = {1: RECORD_V1, 2: RECORD}
 U32 = struct.Struct("<I")
 MAGIC = 0x494D554C
 STATE_NAMES = (
@@ -53,7 +55,7 @@ def find_symbol(elf, nm=None, symbol="imu_log_buffer", required=True):
     return None
 
 
-def read_factory_timing(memory, address):
+def read_factory_timing(memory, address, applied_address=None):
     """读取初始化后固定的诊断数据，旧固件没有此符号时仍可采集。"""
     if address is None:
         return None
@@ -66,7 +68,8 @@ def read_factory_timing(memory, address):
         raise RuntimeError("工厂频率诊断数据异常，请确认初始化和固件版本。")
     return {"freq_fine": fine, "accel_odr_hz_est": accel_hz, "gyro_odr_hz_est": gyro_hz,
             "accel_dt_s_est": accel_dt, "gyro_dt_s_est": gyro_dt,
-            "applied_to_sample_dt": False}
+            "applied_to_sample_dt": bool(U32.unpack(memory.read(applied_address, 4))[0])
+            if applied_address is not None else False}
 
 
 def flash_segments(elf):
@@ -165,10 +168,11 @@ class JLinkMemory:
 class SimulatedMemory:
     """确定性离线数据源，仅用于验证脚本，绝不标为实板数据。"""
     def __init__(self):
-        self.header = [MAGIC, 1, 64, RECORD.size, 0, 0, 0, 0, 0x6B, 1,
+        self.header = [MAGIC, 2, 64, RECORD.size, 0, 0, 0, 0, 0x6B, 1,
                        2, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0.010]
         self.records = bytearray(64 * RECORD.size)
         self.generated = 0
+        self.filtered = [None, None]
 
     def advance(self, elapsed):
         while self.generated < int(elapsed * 104):
@@ -177,9 +181,14 @@ class SimulatedMemory:
                 count = self.header[4]
                 noise = 0.002 * math.sin(self.generated * 0.7)
                 xyz = (noise, -noise, 9.80665 + noise) if kind == 0 else (noise, noise, -noise)
+                alpha = 1 - math.exp(-2 * math.pi * 10 / 104)
+                previous = self.filtered[kind]
+                filtered = xyz if previous is None else tuple(
+                    old + alpha * (new - old) for old, new in zip(previous, xyz))
+                self.filtered[kind] = filtered
                 raw = RECORD.pack(count + 1, kind, self.generated, 0,
                                   round(self.generated * 1000 / 104),
-                                  0.0 if self.generated == 1 else 1 / 104, *xyz)
+                                  0.0 if self.generated == 1 else 1 / 104, *xyz, *filtered)
                 start = count % 64 * RECORD.size
                 self.records[start:start + RECORD.size] = raw
                 self.header[4] += 1
@@ -198,10 +207,12 @@ class BufferReader:
     def __init__(self, memory, address):
         self.memory, self.address = memory, address
         fields = HEADER.unpack(self.read(0, HEADER.size))
-        if fields[:4] != (MAGIC, 1, 64, RECORD.size):
+        self.record = RECORD_FORMATS.get(fields[1])
+        if (fields[0] != MAGIC or fields[2] != 64 or self.record is None
+                or fields[3] != self.record.size):
             raise RuntimeError(
                 f"RAM 日志头不匹配，地址 0x{address:08X}。\n"
-                f"期望：magic=0x{MAGIC:08X}, version=1, capacity=64, record_size={RECORD.size}\n"
+                f"期望：magic=0x{MAGIC:08X}, version=1/2, capacity=64, record_size=36/48\n"
                 f"读回：magic=0x{fields[0]:08X}, version={fields[1]}, "
                 f"capacity={fields[2]}, record_size={fields[3]}\n"
                 "请确认固件已复位运行并完成 C 启动初始化；若 Flash 校验通过，继续排查 RAM 被覆盖。")
@@ -236,13 +247,13 @@ class BufferReader:
             return []
         index = self.cursor % self.capacity
         first = min(available, self.capacity - index)
-        raw = self.read(HEADER.size + index * RECORD.size, first * RECORD.size)
+        raw = self.read(HEADER.size + index * self.record.size, first * self.record.size)
         if first < available:
-            raw += self.read(HEADER.size, (available - first) * RECORD.size)
+            raw += self.read(HEADER.size, (available - first) * self.record.size)
         end = self.count()
         if end < start:
             raise RuntimeError("读取期间 MCU 复位，停止采集。")
-        records = list(RECORD.iter_unpack(raw))
+        records = list(self.record.iter_unpack(raw))
         if end - self.cursor >= self.capacity or any(
                 row[0] != self.cursor + i + 1 for i, row in enumerate(records)):
             self.retries += 1
@@ -251,7 +262,8 @@ class BufferReader:
             if row[1] not in (0, 1) or not all(math.isfinite(v) for v in row[5:]):
                 raise RuntimeError("日志样本类型或浮点值异常，请检查 ELF、固件和通信。")
         self.cursor = start
-        return records
+        return [row + (None, None, None) if self.record is RECORD_V1 else row
+                for row in records]
 
     def state(self):
         for _ in range(3):
@@ -320,6 +332,7 @@ class TimingStatistics:
 def capture(memory, address, args, output, metadata):
     reader = BufferReader(memory, address)
     stats = [Statistics(), Statistics()]
+    filtered_stats = [Statistics(), Statistics()]
     timing_stats = TimingStatistics()
     start = last_progress = last_flush = last_data = time.monotonic()
     last_state = None
@@ -328,7 +341,8 @@ def capture(memory, address, args, output, metadata):
             (output / "state.csv").open("w", newline="", encoding="utf-8") as state_file:
         samples, states = csv.writer(sample_file), csv.writer(state_file)
         samples.writerow(["host_elapsed_s", "ticket", "sensor", "sequence", "stream_id",
-                          "read_tick_ms", "nominal_dt_s", "x", "y", "z", "unit"])
+                          "read_tick_ms", "sample_dt_s", "x", "y", "z", "unit",
+                          "filtered_x", "filtered_y", "filtered_z"])
         states.writerow(["host_elapsed_s", *STATE_NAMES, "host_dropped", "snapshot_retries"])
         try:
             while time.monotonic() - start < args.duration:
@@ -338,10 +352,12 @@ def capture(memory, address, args, output, metadata):
                 rows = reader.samples()
                 if rows:
                     last_data = now
-                for ticket, kind, sequence, stream, tick, dt, x, y, z in rows:
+                for ticket, kind, sequence, stream, tick, dt, x, y, z, fx, fy, fz in rows:
                     samples.writerow([f"{now - start:.6f}", ticket,
                                       "accel" if kind == 0 else "gyro", sequence, stream,
-                                      tick, dt, x, y, z, "m/s^2" if kind == 0 else "rad/s"])
+                                      tick, dt, x, y, z, "m/s^2" if kind == 0 else "rad/s", fx, fy, fz])
+                    if fx is not None:
+                        filtered_stats[kind].add((fx, fy, fz))
                     stats[kind].add((x, y, z))
                     timing_stats.add(kind, stream, sequence, tick, now - start)
                 state = reader.state()
@@ -369,6 +385,9 @@ def capture(memory, address, args, output, metadata):
         finally:
             summary = {"mode": metadata["mode"], "elapsed_s": time.monotonic() - start,
                        "accel": stats[0].result(), "gyro": stats[1].result(),
+                       "filtered": {"accel": filtered_stats[0].result(),
+                                    "gyro": filtered_stats[1].result()},
+                       "filter": metadata.get("filter"),
                        "host_dropped": reader.host_dropped, "snapshot_retries": reader.retries,
                        "factory_timing": metadata.get("factory_timing"),
                        "timing_by_stream": timing_stats.result(metadata.get("factory_timing")),
@@ -418,11 +437,22 @@ def main(argv=None):
             print(f"固件校验通过：{checked} 字节。", flush=True)
         timing_address = None if args.simulate else find_symbol(
             args.elf, args.nm, symbol="lsm6dsr_timing", required=False)
-        factory_timing = None if args.simulate else read_factory_timing(memory, timing_address)
+        applied_address = None if args.simulate else find_symbol(
+            args.elf, args.nm, symbol="lsm6dsr_factory_dt_enabled", required=False)
+        factory_timing = None if args.simulate else read_factory_timing(
+            memory, timing_address, applied_address)
+        filter_address = None if args.simulate else find_symbol(
+            args.elf, args.nm, symbol="imu_filter_cutoff_hz", required=False)
+        cutoffs = (10.0, 10.0) if args.simulate else (
+            struct.unpack("<2f", memory.read(filter_address, 8)) if filter_address is not None else None)
+        filter_info = None if cutoffs is None else {
+            "type": "first_order_lowpass", "discretization": "exponential",
+            "accel_cutoff_hz": cutoffs[0], "gyro_cutoff_hz": cutoffs[1]}
         if factory_timing:
             print(f"FREQ_FINE={factory_timing['freq_fine']}，"
                   f"加速度/陀螺仪 ODR 估算为 {factory_timing['accel_odr_hz_est']:.3f}/"
-                  f"{factory_timing['gyro_odr_hz_est']:.3f} Hz（尚未应用到样本 dt）。", flush=True)
+                  f"{factory_timing['gyro_odr_hz_est']:.3f} Hz，"
+                  f"应用到样本 dt：{factory_timing['applied_to_sample_dt']}。", flush=True)
         elif not args.simulate:
             print("本次没有可用的工厂频率诊断；仍按现有样本 dt 记录。", flush=True)
         output = args.output or ROOT / "logs/imu" / datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -432,9 +462,9 @@ def main(argv=None):
                     "elf": str(args.elf.resolve()), "buffer_address": hex(address),
                     "elf_sha256": None if args.simulate else hashlib.sha256(args.elf.read_bytes()).hexdigest(),
                     "duration_s": args.duration, "poll_ms": args.poll_ms,
-                    "factory_timing": factory_timing,
+                    "factory_timing": factory_timing, "filter": filter_info,
                     "device": args.device, "serial": args.serial, "swd_speed_khz": args.speed,
-                    "timing": "nominal_dt_s 是标称间隔；read_tick_ms/host_elapsed_s 不是采样时间戳。"}
+                    "timing": "sample_dt_s 是固件提供的样本间隔，数据流首样本为 0；read_tick_ms/host_elapsed_s 不是采样时间戳。"}
         (output / "metadata.json").write_text(json.dumps(metadata, indent=2, ensure_ascii=False),
                                               encoding="utf-8")
         print(f"模式：{metadata['mode']}，日志目录：{output}", flush=True)

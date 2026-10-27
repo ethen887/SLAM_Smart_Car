@@ -1,6 +1,7 @@
 #include "app_move.h"
 #include "tim.h"
 #include "alg_pid.h"
+#include <math.h>
 
 
 #define PS2_AXIS_DEADZONE        10U
@@ -111,14 +112,35 @@ void App_Move_Init(void)
     Dev_TB_Enable();
 }
 
-void App_Move_Control(Move_Direction direction, float target_speed)
+/** @brief 停车或制动时清除 PID 历史，保留原有增益和限幅参数。 */
+static void App_Move_ClearPid(PidInstance_s *pid)
 {
+    for (unsigned i = 0U; i < 2U; ++i) {
+        pid->target[i] = pid->now[i] = pid->err[i] = 0.0f;
+    }
+    pid->p_out = pid->i_out = pid->d_out = pid->f_out = pid->output = 0.0f;
+}
+
+void App_Move_Control(Move_Direction move_direction, float target_speed)
+{
+    direction = move_direction;
+    // 急刹直接切换驱动状态，不经速度 PID，也不让停车期间继续累积积分。
+    if (move_direction == MOVE_STOP || move_direction == MOVE_BRAKE) {
+        const MG513_State state = move_direction == MOVE_BRAKE ? MG513_BRAKE : MG513_COAST;
+        left_motor->target_speed = right_motor->target_speed = 0.0f;
+        Dev_MG513_Control(left_motor, 0U, state);
+        Dev_MG513_Control(right_motor, 0U, state);
+        App_Move_ClearPid(left_motor_pid);
+        App_Move_ClearPid(right_motor_pid);
+        return;
+    }
+
     uint32_t pwm_value_left = 0;
     uint32_t pwm_value_right = 0;
     // 计算左右电机的 PWM 值
     pwm_value_left = Pid_Calculate(left_motor_pid, target_speed, left_motor->speed);
     pwm_value_right = Pid_Calculate(right_motor_pid, target_speed, right_motor->speed);
-    switch (direction)
+    switch (move_direction)
     {
         case MOVE_FORWARD:
             Dev_MG513_Control(left_motor, pwm_value_left, MG513_FORWARD);
@@ -136,13 +158,6 @@ void App_Move_Control(Move_Direction direction, float target_speed)
             Dev_MG513_Control(left_motor, pwm_value_left, MG513_FORWARD);
             Dev_MG513_Control(right_motor, pwm_value_right, MG513_BACKWARD);
             break;
-        case MOVE_STOP:
-            Dev_MG513_Control(left_motor, 0, MG513_COAST);
-            Dev_MG513_Control(right_motor, 0, MG513_COAST);
-            break;
-        case MOVE_BRAKE:
-            Dev_MG513_Control(left_motor, 0, MG513_BRAKE);
-            Dev_MG513_Control(right_motor, 0, MG513_BRAKE);
         default:
             // Handle invalid direction
             break;
@@ -183,6 +198,7 @@ static bool App_GetChassisCommand(const Ps2Data_t *data,
     // PS2 纵轴向上为小值，取负号后前进为正。
     out->stright = -App_NormalizeAxis(data->ly);
     out->turn    = -App_NormalizeAxis(data->rx);
+    out->brake   = (data->buttons & PS2_BTN_L2) == 0U;
     return true;
 }
 
@@ -212,6 +228,11 @@ static uint32_t App_CalcSpeed(float input)
  */
 static void App_ControlChassis(const App_ChassisCommand_t *cmd)
 {
+    if (cmd->brake) {
+        App_Move_Brake();
+        return;
+    }
+
     const float forward = cmd->stright;
     const float turn = cmd->turn;
     const float abs_forward = (forward >= 0.0f) ? forward : -forward;
@@ -249,6 +270,51 @@ static void App_ControlChassis(const App_ChassisCommand_t *cmd)
 void App_Move_Stop(void)
 {
     App_Move_Control(MOVE_STOP, 0);
+}
+
+/** @brief 按住 L2 时对两轮制动；松开后的下一轮重新执行摇杆指令。 */
+void App_Move_Brake(void)
+{
+    App_Move_Control(MOVE_BRAKE, 0.0f);
+}
+
+/** @brief 自动实验按方向控制单轮，速度反馈仍使用原来的绝对值。 */
+static void App_Move_ControlWheel(MG513_HandleTypeDef *motor, PidInstance_s *pid, float speed)
+{
+    motor->target_speed = fabsf(speed);
+    if (motor->target_speed < 0.001f) {
+        Dev_MG513_Control(motor, 0U, MG513_BRAKE);
+        App_Move_ClearPid(pid);
+        return;
+    }
+    float pwm = Pid_Calculate(pid, motor->target_speed, motor->speed);
+    const float maximum = (float)__HAL_TIM_GET_AUTORELOAD(motor->pwm_timer);
+    if (!isfinite(pwm) || pwm < 0.0f) pwm = 0.0f;
+    if (pwm > maximum) pwm = maximum;
+    Dev_MG513_Control(motor, (uint32_t)pwm, speed > 0.0f ? MG513_FORWARD : MG513_BACKWARD);
+}
+
+/** @brief 独立轮速接口，超过电机上限时等比例缩放，保留左右轮比例。 */
+void App_Move_SetWheelSpeeds(float left_speed, float right_speed)
+{
+    if (!isfinite(left_speed) || !isfinite(right_speed)) {
+        App_Move_Brake();
+        return;
+    }
+    const float peak = fmaxf(fabsf(left_speed), fabsf(right_speed));
+    if (peak < 0.001f) {
+        App_Move_Brake();
+        return;
+    }
+    if (peak > MG513_MAX_SPEED) {
+        left_speed *= MG513_MAX_SPEED / peak;
+        right_speed *= MG513_MAX_SPEED / peak;
+    }
+    direction = left_speed >= 0.0f && right_speed >= 0.0f ? MOVE_FORWARD :
+                left_speed <= 0.0f && right_speed <= 0.0f ? MOVE_BACKWARD :
+                left_speed < right_speed ? MOVE_LEFT : MOVE_RIGHT;
+    App_Move_ControlWheel(left_motor, left_motor_pid, left_speed);
+    App_Move_ControlWheel(right_motor, right_motor_pid, right_speed);
 }
 
 /*

@@ -32,7 +32,8 @@
 #define LSM6DSR_USE_FACTORY_DT    1U
 #endif
 #define LSM6DSR_FIFO_MAX_ITEMS    8U   // 每项为一个三轴样本，不是一组六轴。
-// 板级排查：避开 STM32F1 长读收尾路径；设为 0 可对比原来的 7 字节连续读取。
+// 板级规避：FIFO 的 TAG 和六个数据字节分别读取，避开多字节事务的字节重复。
+// 设为 0 仅用于诊断对比原来的 7 字节连续读取。
 #ifndef LSM6DSR_FIFO_SPLIT_READ
 #define LSM6DSR_FIFO_SPLIT_READ   1
 #endif

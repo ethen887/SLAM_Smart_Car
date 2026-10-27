@@ -58,7 +58,7 @@ const osThreadAttr_t defaultTask_attributes = {
 osThreadId_t Move_TaskHandle;
 const osThreadAttr_t Move_Task_attributes = {
   .name = "Move_Task",
-  .stack_size = 128 * 4,
+  .stack_size = 256 * 4, /* IMU FIFO callback and floating-point attitude calculations */
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for RmoteTsk */
