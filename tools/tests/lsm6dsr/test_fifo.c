@@ -13,11 +13,15 @@
 #include <string.h>
 
 I2C_HandleTypeDef hi2c1;
-static uint8_t registers[2][256], queue[64][7], overrun_flags;
+static uint8_t registers[2][256], queue[512][7], overrun_flags, last_item[7];
 static uint16_t head, queued;
 static uint32_t tick;
 static unsigned raw_reads, fail_raw_at, overrun_raw_at, status_reads, fail_status_at;
 static bool fail_mode_write, reset_stuck, duplicate_long_tail, fail_timing_read;
+static bool duplicate_status_tail, cross_status_boundary, overrun_on_boundary;
+static bool duplicate_axis_tail;
+static uint16_t fail_data_reg;
+static unsigned empty_reads, multi_status_reads, fail_status2_at, status2_reads;
 static int8_t factory_fine;
 static Lsm6dsrSample_t received[128];
 static unsigned received_count;
@@ -30,8 +34,8 @@ static uint8_t *Reg(uint16_t reg)
 
 static void Push(uint8_t tag, int16_t x, int16_t y, int16_t z)
 {
-    assert(queued < 64U);
-    uint8_t *item = queue[(head + queued++) % 64U];
+    assert(queued < 512U);
+    uint8_t *item = queue[(head + queued++) % 512U];
     const int16_t value[] = {x, y, z};
     item[0] = (uint8_t)(tag << 3);
     for (unsigned i = 0; i < 3U; ++i) {
@@ -52,27 +56,50 @@ HAL_StatusTypeDef HAL_I2C_Mem_Read(I2C_HandleTypeDef *handle, uint16_t address,
         return HAL_OK;
     }
     if (reg == LSM6DSR_FIFO_STATUS1) {
-        assert(size == 2U);
+        assert(size == 1U || size == 2U);
         if (++status_reads == fail_status_at) return HAL_TIMEOUT;
+        if (cross_status_boundary) {
+            cross_status_boundary = false;
+            Push(LSM6DSR_XL_NC_TAG, 1, 2, 3);
+            if (overrun_on_boundary) overrun_flags = 0x08U;
+        }
         data[0] = (uint8_t)queued;
-        data[1] = (uint8_t)((queued >> 8) | overrun_flags);
+        if (size == 2U) {
+            ++multi_status_reads;
+            data[1] = duplicate_status_tail ? data[0] : (uint8_t)((queued >> 8) | overrun_flags);
+            overrun_flags &= (uint8_t)~0x08U;
+        }
+        return HAL_OK;
+    }
+    if (reg == LSM6DSR_FIFO_STATUS2) {
+        assert(size == 1U);
+        if (++status2_reads == fail_status2_at) return HAL_TIMEOUT;
+        data[0] = (uint8_t)((queued >> 8) | overrun_flags);
         overrun_flags &= (uint8_t)~0x08U; // 锁存位读清。
         return HAL_OK;
     }
     if (reg >= LSM6DSR_FIFO_DATA_OUT_TAG && reg <= LSM6DSR_FIFO_DATA_OUT_Z_H) {
         const uint16_t offset = reg - LSM6DSR_FIFO_DATA_OUT_TAG;
-        assert(queued > 0U && offset + size <= 7U);
+        assert(offset + size <= 7U);
         if (size != 7U) {
-            assert((offset == 0U && size == 1U) ||
+            assert(size == 1U ||
                    ((offset == 1U || offset == 3U || offset == 5U) && size == 2U));
         }
-        memcpy(data, queue[head] + offset, size);
+        if (reg == fail_data_reg) return HAL_TIMEOUT;
+        // 空 FIFO 读取仍可返回旧标签/数据，HAL_OK 不表示存在新的传感器样本。
+        memcpy(data, (queued ? queue[head] : last_item) + offset, size);
         if (size == 7U && duplicate_long_tail) data[6] = data[5];
+        if (size == 2U && duplicate_axis_tail) data[1] = data[0];
         // 模拟一项的所有字节读完才出队；部分失败仍由恢复流程清空。
         if (offset + size == 7U) {
             ++raw_reads;
-            head = (head + 1U) % 64U;
-            --queued;
+            if (queued) {
+                memcpy(last_item, queue[head], sizeof(last_item));
+                head = (head + 1U) % 512U;
+                --queued;
+            } else {
+                ++empty_reads;
+            }
             if (raw_reads == fail_raw_at) return HAL_ERROR;
             if (raw_reads == overrun_raw_at) overrun_flags = 0x08U;
         }
@@ -122,6 +149,11 @@ static void ResetModel(void)
     status_reads = fail_status_at = received_count = 0U;
     fail_mode_write = reset_stuck = duplicate_long_tail = false;
     fail_timing_read = false;
+    duplicate_status_tail = cross_status_boundary = overrun_on_boundary = false;
+    duplicate_axis_tail = false;
+    fail_data_reg = 0U;
+    empty_reads = multi_status_reads = fail_status2_at = status2_reads = 0U;
+    memset(last_item, 0, sizeof(last_item));
     factory_fine = 0;
     Dev_Lsm6dsr_SetSampleCallback(Collect);
 }
@@ -176,8 +208,8 @@ static void TestOrderUnitsAndEmpty(void)
     Near(received[1].value[2], -16384.0f * 0.061f * 0.00980665f);
     Near(received[0].dt, 0.0f);
     Near(received[1].dt, 0.0f);
-    Near(received[2].dt, 1.0f / 104.0f);
-    Near(received[3].dt, 1.0f / 104.0f);
+    Near(received[2].dt, LSM6DSR_USE_FACTORY_DT ? lsm6dsr_timing.gyro_dt_s_est : LSM6DSR_GYRO_DT_S);
+    Near(received[3].dt, LSM6DSR_USE_FACTORY_DT ? lsm6dsr_timing.accel_dt_s_est : LSM6DSR_ACCEL_DT_S);
     assert(received[2].sequence == 2U && received[3].sequence == 2U);
     assert(lsm6dsr_fifo_debug.accel_count == 2U && lsm6dsr_fifo_debug.gyro_count == 2U);
     const Lsm6dsrData_t last = Dev_Lsm6dsr_GetData();
@@ -300,12 +332,100 @@ static void TestFactoryTiming(void)
         Push(LSM6DSR_XL_NC_TAG, 1, 2, 3);
         Push(LSM6DSR_XL_NC_TAG, 4, 5, 6);
         assert(Dev_Lsm6dsr_Update());
-        Near(received[1].dt, LSM6DSR_ACCEL_DT_S); // 本轮只诊断，不暗中修改时间基准。
+        Near(received[1].dt, LSM6DSR_USE_FACTORY_DT ? 1.0f / expected : LSM6DSR_ACCEL_DT_S);
     }
     ResetModel();
     fail_timing_read = true;
     assert(Dev_Lsm6dsr_Init() == LSM6DSR_INIT_IO_ERROR);
     assert(lsm6dsr_timing.valid == 0U);
+}
+
+static void TestStatusByteDuplication(void)
+{
+    Init();
+    duplicate_status_tail = true;
+    for (unsigned i = 0U; i < 12U; ++i) {
+        Push(LSM6DSR_GYRO_NC_TAG, 100, -200, 300);
+        Push(LSM6DSR_XL_NC_TAG, 1000, -2000, 3000);
+        assert(Dev_Lsm6dsr_Update());
+        // 旧路径将 2 读成 514，每轮误发 1 个陀螺仪和 7 个加速度项。
+        assert(lsm6dsr_fifo_debug.level_before == 2U);
+        assert(lsm6dsr_fifo_debug.accel_count == 1U && lsm6dsr_fifo_debug.gyro_count == 1U);
+    }
+    assert(lsm6dsr_fifo_debug.accel_total == 12U && lsm6dsr_fifo_debug.gyro_total == 12U);
+    assert(empty_reads == 0U && multi_status_reads == 0U);
+    assert(!Dev_Lsm6dsr_Update() && received_count == 24U);
+
+    // 同样覆盖真实数量为 1、旧路径误读为 257 的情况。
+    Push(LSM6DSR_XL_NC_TAG, 4, 5, 6);
+    assert(Dev_Lsm6dsr_Update());
+    assert(lsm6dsr_fifo_debug.level_before == 1U && lsm6dsr_fifo_debug.accel_count == 1U);
+    assert(empty_reads == 0U);
+}
+
+static void TestStatusCounterBoundary(bool overrun)
+{
+    Init();
+    for (unsigned i = 0U; i < 255U; ++i) Push(LSM6DSR_XL_NC_TAG, 1, 2, 3);
+    cross_status_boundary = true;
+    overrun_on_boundary = overrun;
+    if (overrun) {
+        // 首次读取/重试期间读清的锁存位仍必须让整批拒绝发布。
+        assert(!Dev_Lsm6dsr_Update());
+        assert(lsm6dsr_fifo_debug.status == LSM6DSR_UPDATE_OVERRUN && received_count == 0U);
+    } else {
+        assert(Dev_Lsm6dsr_Update());
+        assert(lsm6dsr_fifo_debug.level_before == 256U);
+        assert(lsm6dsr_fifo_debug.level_after == 248U && queued == 248U);
+        assert(received_count == LSM6DSR_FIFO_MAX_ITEMS);
+    }
+}
+
+static void TestStatusHighReadFailure(void)
+{
+    for (unsigned phase = 1U; phase <= 4U; ++phase) {
+        Init();
+        Push(LSM6DSR_XL_NC_TAG, 1, 2, 3);
+        fail_status2_at = phase; // 批次前后各两次 STATUS2，任何一次失败都不得发布。
+        assert(!Dev_Lsm6dsr_Update());
+        assert(lsm6dsr_fifo_debug.status == LSM6DSR_UPDATE_IO_ERROR);
+        assert(lsm6dsr_hal_status == HAL_TIMEOUT && received_count == 0U);
+    }
+}
+
+static void TestAxisByteDuplication(void)
+{
+    Init();
+    duplicate_axis_tail = true;
+    // 44 的正常原始值为 0x002C；两字节重复会变成 0x2C2C，伪造大角速度。
+    Push(LSM6DSR_GYRO_NC_TAG, 44, -79, 42);
+    Push(LSM6DSR_XL_NC_TAG, 14140, -8256, 1356);
+    assert(Dev_Lsm6dsr_Update() && received_count == 2U && queued == 0U);
+    const int16_t values[2][3] = {{44, -79, 42}, {14140, -8256, 1356}};
+    for (unsigned axis = 0U; axis < 3U; ++axis) {
+        Near(received[0].value[axis], values[0][axis] * 8.75f * 0.00001745329252f);
+        Near(received[1].value[axis], values[1][axis] * 0.061f * 0.00980665f);
+    }
+}
+
+static void TestSingleByteReadFailure(void)
+{
+#if LSM6DSR_FIFO_SPLIT_READ
+    for (unsigned offset = 0U; offset < 7U; ++offset) {
+        Init();
+        Push(LSM6DSR_GYRO_NC_TAG, 44, -79, 42);
+        fail_data_reg = LSM6DSR_FIFO_DATA_OUT_TAG + offset;
+        assert(!Dev_Lsm6dsr_Update());
+        assert(lsm6dsr_hal_status == HAL_TIMEOUT && received_count == 0U);
+        assert(lsm6dsr_fifo_debug.status == LSM6DSR_UPDATE_IO_ERROR);
+        fail_data_reg = 0U;
+        assert(!Dev_Lsm6dsr_Update());
+        assert(lsm6dsr_fifo_debug.status == LSM6DSR_UPDATE_RECOVERED && queued == 0U);
+        Push(LSM6DSR_GYRO_NC_TAG, 44, -79, 42);
+        assert(Dev_Lsm6dsr_Update() && received_count == 1U);
+        assert(received[0].stream_id == 1U && received[0].dt == 0.0f);
+    }
+#endif
 }
 
 int main(void)
@@ -319,6 +439,12 @@ int main(void)
     TestStatusFailureAndUnknownTag();
     TestTailReadWorkaround();
     TestFactoryTiming();
-    puts("LSM6DSR FIFO host tests passed (9 scenarios).");
+    TestStatusByteDuplication();
+    TestStatusCounterBoundary(false);
+    TestStatusCounterBoundary(true);
+    TestStatusHighReadFailure();
+    TestAxisByteDuplication();
+    TestSingleByteReadFailure();
+    puts("LSM6DSR FIFO host tests passed (15 scenarios; byte-failure checks require split mode).");
     return 0;
 }

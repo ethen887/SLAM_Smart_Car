@@ -1,5 +1,6 @@
 #include "app_imu_log.h"
 #include "app_imu_filter.h"
+#include "app_attitude.h"
 #include <stddef.h>
 
 _Static_assert(sizeof(ImuLogRecord_t) == 48U, "IMU log record layout changed");
@@ -19,6 +20,7 @@ static void App_ImuLog_OnSample(const Lsm6dsrSample_t *sample)
 {
     float filtered[3];
     App_ImuFilter_Process(sample, filtered);
+    App_Attitude_Process(sample->type == LSM6DSR_SAMPLE_GYRO, sample->value, sample->dt, sample->stream_id);
     const uint32_t count = imu_log_buffer.write_count;
     volatile ImuLogRecord_t *record = &imu_log_buffer.records[count % IMU_LOG_CAPACITY];
 

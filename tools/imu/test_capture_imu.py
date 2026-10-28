@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 import unittest
 
-from capture_imu import (BufferReader, HEADER, RECORD, SimulatedMemory, Statistics,
+from capture_imu import (BufferReader, HEADER, RECORD, RECORD_V1, SimulatedMemory, Statistics,
                          capture, find_symbol, flash_segments, verify_firmware,
                          read_factory_timing, TimingStatistics)
 
@@ -38,7 +38,7 @@ class CaptureTests(unittest.TestCase):
 
     def test_layout_and_sample_order(self):
         self.assertEqual(HEADER.size, 88)
-        self.assertEqual(RECORD.size, 36)
+        self.assertEqual(RECORD.size, 48)
         memory = SimulatedMemory()
         reader = BufferReader(memory, 0)
         memory.advance(0.02)
@@ -48,6 +48,23 @@ class CaptureTests(unittest.TestCase):
         self.assertAlmostEqual(rows[0][5], 0)
         self.assertAlmostEqual(rows[2][5], 1 / 104)
         self.assertEqual(reader.samples(), [])
+
+    def test_v1_backward_compatibility(self):
+        memory = SimulatedMemory()
+        memory.header[1:4] = [1, 64, RECORD_V1.size]
+        memory.records = bytearray(64 * RECORD_V1.size)
+        reader = BufferReader(memory, 0)
+        memory.records[:RECORD_V1.size] = RECORD_V1.pack(1, 0, 1, 0, 10, 0, 1, 2, 3)
+        memory.header[4] = 1
+        self.assertEqual(reader.samples()[0][-3:], (None, None, None))
+
+    def test_applied_timing_flag(self):
+        import struct
+        class Memory:
+            def read(self, address, size):
+                return struct.pack("<I", 1) if address == 24 else struct.pack(
+                    "<i4fI", 35, 109.64, 109.64, 1/109.64, 1/109.64, 1)
+        self.assertTrue(read_factory_timing(Memory(), 0, 24)["applied_to_sample_dt"])
 
     def test_wrap_and_lost_records(self):
         memory = SimulatedMemory()
@@ -132,7 +149,7 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(memory.data[0x10C:0x110], b"\xff" * 4)
         self.assertEqual(verify_firmware(memory, elf), sum(len(raw) for _, raw in segments))
         # 特意只破坏 RAM 初值镜像中的日志 magic，向量表和代码保持一致。
-        log_magic = b"LUMI\x01\0\0\0\x40\0\0\0\x24\0\0\0"
+        log_magic = b"LUMI\x02\0\0\0\x40\0\0\0\x30\0\0\0"
         address, raw = next((address, raw) for address, raw in segments if log_magic in raw)
         offset = address - 0x08000000 + raw.index(log_magic)
         memory.data[offset] ^= 0xFF
@@ -156,9 +173,12 @@ class CaptureTests(unittest.TestCase):
             self.assertGreaterEqual(len(rows), 10)
             self.assertEqual(rows[0]["sensor"], "accel")
             self.assertEqual(rows[1]["unit"], "rad/s")
+            self.assertIn("sample_dt_s", rows[0])
+            self.assertNotEqual(rows[2]["x"], rows[2]["filtered_x"])
             summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
             self.assertEqual(summary["mode"], "simulation")
             self.assertEqual(summary["host_dropped"], 0)
+            self.assertEqual(summary["accel"]["samples"], summary["filtered"]["accel"]["samples"])
 
     def test_actual_elf_symbol_when_built(self):
         elf = Path(__file__).resolve().parents[2] / "STM32_F103/build/Debug/STM32_F103.elf"

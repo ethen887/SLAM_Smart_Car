@@ -52,6 +52,7 @@ Thumbs.db
 Desktop.ini
 __pycache__/
 logs/imu/
+logs/odometry/
 *.py[cod]
 .venv/
 # Local secrets; examples may be committed
