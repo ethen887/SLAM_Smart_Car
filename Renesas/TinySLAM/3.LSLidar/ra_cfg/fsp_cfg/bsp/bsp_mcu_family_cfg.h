@@ -166,7 +166,7 @@
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 19) /* GPT12 */ | \
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 20) /* GPT11 */ | \
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 21) /* GPT10 */ | \
-            (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 27) /* GPT4 */ | \
+            (((1 > 0) ? 0U : 1U) << 27) /* GPT4 */ | \
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 28) /* GPT3 */ | \
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 29) /* GPT2 */ | \
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 30) /* GPT1 */ | \
@@ -302,7 +302,7 @@
 #ifndef BSP_TZ_CFG_DMACCHSAR
 #define BSP_TZ_CFG_DMACCHSAR (\
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 0U) /* DMACx Channel 0 */ | \
-            (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 1U) /* DMACx Channel 1 */ | \
+            (((1 > 0) ? 0U : 1U) << 1U) /* DMACx Channel 1 */ | \
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 2U) /* DMACx Channel 2 */ | \
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 3U) /* DMACx Channel 3 */ | \
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 4U) /* DMACx Channel 4 */ | \

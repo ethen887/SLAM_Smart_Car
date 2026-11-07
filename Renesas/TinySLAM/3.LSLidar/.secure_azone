@@ -16,6 +16,8 @@
             <slot name="P801.CPU0" secure="true"/>
             <slot name="P802.CPU0" secure="true"/>
         </peripheral>
+        <peripheral name="DMA_DMAC1.CPU0" group="DMA_DMAC" security="s"/>
+        <peripheral name="GPT4.CPU0" group="GPT" security="s"/>
         <peripheral name="ICU.CPU0">
             <slot name="IRQ0.CPU0" secure="true"/>
             <slot name="IRQ1.CPU0" secure="true"/>
@@ -25,6 +27,8 @@
             <slot name="IRQ5.CPU0" secure="true"/>
             <slot name="IRQ6.CPU0" secure="true"/>
             <slot name="IRQ7.CPU0" secure="true"/>
+            <slot name="IRQ8.CPU0" secure="true"/>
+            <slot name="IRQ9.CPU0" secure="true"/>
         </peripheral>
     </partition>
 </azone>

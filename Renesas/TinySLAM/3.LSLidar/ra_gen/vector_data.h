@@ -6,13 +6,15 @@
         #endif
                 /* Number of interrupts allocated */
         #ifndef VECTOR_DATA_IRQ_COUNT
-        #define VECTOR_DATA_IRQ_COUNT    (8)
+        #define VECTOR_DATA_IRQ_COUNT    (10)
         #endif
         /* ISR prototypes */
         void sci_b_uart_rxi_isr(void);
         void sci_b_uart_txi_isr(void);
         void sci_b_uart_tei_isr(void);
         void sci_b_uart_eri_isr(void);
+        void dmac_int_isr(void);
+        void gpt_counter_overflow_isr(void);
 
         /* Vector table allocations */
         #define VECTOR_NUMBER_SCI2_RXI ((IRQn_Type) 0) /* SCI2 RXI (Receive data full) */
@@ -31,8 +33,12 @@
         #define SCI1_TEI_IRQn          ((IRQn_Type) 6) /* SCI1 TEI (Transmit end) */
         #define VECTOR_NUMBER_SCI1_ERI ((IRQn_Type) 7) /* SCI1 ERI (Receive error) */
         #define SCI1_ERI_IRQn          ((IRQn_Type) 7) /* SCI1 ERI (Receive error) */
+        #define VECTOR_NUMBER_DMAC1_INT ((IRQn_Type) 8) /* DMAC1 INT (DMAC1 transfer end) */
+        #define DMAC1_INT_IRQn          ((IRQn_Type) 8) /* DMAC1 INT (DMAC1 transfer end) */
+        #define VECTOR_NUMBER_GPT4_COUNTER_OVERFLOW ((IRQn_Type) 9) /* GPT4 COUNTER OVERFLOW (Overflow) */
+        #define GPT4_COUNTER_OVERFLOW_IRQn          ((IRQn_Type) 9) /* GPT4 COUNTER OVERFLOW (Overflow) */
         /* The number of entries required for the ICU vector table. */
-        #define BSP_ICU_VECTOR_NUM_ENTRIES (8)
+        #define BSP_ICU_VECTOR_NUM_ENTRIES (10)
 
         #ifdef __cplusplus
         }
