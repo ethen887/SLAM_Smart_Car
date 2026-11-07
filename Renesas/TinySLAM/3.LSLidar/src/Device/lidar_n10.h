@@ -46,11 +46,6 @@ extern volatile uint32_t g_valid_frame_cnt; // 探照灯：成功解析帧数
 
 void lidar_n10_init(void);
 /* 输入任意长度的连续数据，返回本次成功解析的帧数。 */
-size_t lidar_n10_feed(const uint8_t *data, size_t length);
-/* 数据流中断或丢块时，丢弃尚未完成的帧。 */
-void lidar_n10_stream_reset(void);
-/* 兼容原先的逐字节输入接口。 */
-void lidar_n10_feed_byte(uint8_t byte);
 
 /** @brief 从给定范围中查找并复制一帧完整有效数据。 */
 bool lidar_n10_find_frame(const uint8_t *data, size_t length, uint8_t *frame_out);
