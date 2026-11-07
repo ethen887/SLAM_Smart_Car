@@ -79,19 +79,21 @@ static bool lidar_n10_frame_valid(const uint8_t *frame, size_t length)
  * @param[out] frame_out    用于保存找到的数据帧的输出缓冲区。
  * @return true  找到并复制了有效数据帧。
  * @return false 输入参数无效或未找到有效数据帧。
+ * @param[out] offset       用于保存找到的数据帧在输入缓冲区中的偏移量。
  */
 bool lidar_n10_find_frame(const uint8_t *data, size_t length,
-                          uint8_t *frame_out)
+                          uint8_t *frame_out, size_t *offsets)
 {
     if ((data == NULL) || (frame_out == NULL) || (length < LIDAR_N10_FRAME_SIZE)) {
         return false;
     }
-
+    *offsets = 0;
     /* 每个候选位置必须至少剩下 58 字节，避免越界读取。 */
     for (size_t offset = 0; offset <= length - LIDAR_N10_FRAME_SIZE; offset++) {
         if (lidar_n10_frame_valid(&data[offset], LIDAR_N10_FRAME_SIZE)) {
             /* memmove 允许输入与输出缓冲区重叠。 */
             memmove(frame_out, &data[offset], LIDAR_N10_FRAME_SIZE); // 从当前位置连续复制 LIDAR_N10_FRAME_SIZE 字节到输出缓冲区
+            *offsets = offset;
             return true;
         }
     }

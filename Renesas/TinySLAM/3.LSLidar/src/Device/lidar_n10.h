@@ -48,7 +48,7 @@ void lidar_n10_init(void);
 /* 输入任意长度的连续数据，返回本次成功解析的帧数。 */
 
 /** @brief 从给定范围中查找并复制一帧完整有效数据。 */
-bool lidar_n10_find_frame(const uint8_t *data, size_t length, uint8_t *frame_out);
+bool lidar_n10_find_frame(const uint8_t *data, size_t length, uint8_t *frame_out,size_t *offsets);
 
 /**
  * @brief 将完整帧中的 16 个测量点解析到调用者提供的数组中。

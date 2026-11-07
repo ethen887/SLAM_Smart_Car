@@ -24,10 +24,6 @@ typedef struct{
 
 /** 启动雷达接收；成功时返回 FSP_SUCCESS。 */
 fsp_err_t lidar_data_process_init(void);
-/** 获取最早未处理的数据块；没有数据时返回 NULL。 */
-const LiDar_Data *lidar_data_process_acquire(void);
-/** 完成当前块的处理后释放；只允许一个消费者调用。 */
-void lidar_data_process_release(void);
-/** 队列满时丢弃的数据块数，可用调试器查看。 */
-extern volatile uint32_t g_lidar_dropped_blocks;
+void LiDar_Data_Process(void); // 处理队列中的数据
+
 #endif
