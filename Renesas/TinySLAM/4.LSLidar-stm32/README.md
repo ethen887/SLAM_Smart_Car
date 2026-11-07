@@ -22,3 +22,21 @@ Example:
 ```cd "C:/aWorkspace/project-ra8p1/SLAM_Smart_Car/Renesas/TinySLAM/Serial" && code .```
 
 - Click build in VS Code status bar
+
+
+## 独立概率栅格建图算法
+
+`src/algorithm/map_core.c` 和 `map_core.h` 提供与硬件无关的 C 建图核心：坐标变换、边界裁剪、Bresenham 射线遍历及 Log-Odds 更新。算法不依赖雷达协议、UART、FreeRTOS 或具体 MCU；地图与帧内标记数组由调用方分配，不使用动态内存。
+
+**当前仅提供算法接口，未连接本工程的雷达任务，也没有自动建图或地图串口输出。** 后续由 App 负责接收和校验扫描、获取与扫描对应的位姿及传感器状态，再调用算法。没有有效里程计时只能由 App 明确选择静止测试姿态，不能将固定姿态用于移动建图。
+
+### 接口与数据约定
+
+- `map_init(&map, &config, cells, marks, capacity)`：绑定调用方提供的 `Cell` 和 `uint8_t` 数组并清零。容量至少为宽 × 高；数组的生命周期必须覆盖 Map 的全部使用时间。
+- `map_update(&map, pose, rays, count, frame)`：按一帧更新地图。`pose` 的 x、y 使用米，theta 使用弧度；每条射线的 angle 是相对位姿方向的弧度，distance 是米。位姿应是传感器参考点在地图中的姿态；固定外参和时间同步由 App 负责。
+- `Ray.hit != 0` 表示有效障碍物命中；`hit == 0` 表示允许沿射线清除的可靠无回波。无效或语义未知的测量应由 App 剔除，不能简单当作无回波。
+- `map_reset(&map)` 清空地图；`map_copy(&map, output, capacity)` 复制地图。地图单次只能由一个任务修改；并发读取与快照一致性由 App 管理。
+
+一帧内同一栅格仅更新一次，命中优先；越界射线裁剪到地图范围。默认参数可由 App 参考 PC Demo 配置为 100×100、分辨率 0.05 m、原点 (-2.5, -2.5) m，空闲 -0.40、占据 +0.85、限幅 [-4, 4]。移植版在裁剪后增加边界钳制，避免浮点舍入导致越界。
+
+`tests/test_mapping.c` 测试独立核心及边界；`tests/test_compare.py` 将无裁剪输入与 `Renesas/MapBuild_Demo` 原 C 核心对照。目标工程编译通过不代表算法已被任务调用或硬件验证。
