@@ -10,7 +10,7 @@ void new_thread0_entry(void *pvParameters) {
     (void)pvParameters;
 
     uart2_init();
-    uart1_dmac_init();
+    uart1_dmac_init(g_transfer_lidar_callback, NULL);
     gpt_init();          
 
     vTaskDelay(pdMS_TO_TICKS(300));
@@ -33,8 +33,9 @@ void new_thread0_entry(void *pvParameters) {
             if ((xTaskGetTickCount() - last_data_tick) > pdMS_TO_TICKS(500)) {
                 printf("DMAC Halt! Recovering...\r\n");
                 R_DMAC_Disable(&g_transfer_lidar_ctrl); 
+                R_DMAC_Close(&g_transfer_lidar_ctrl);
                 R_SCI_B_UART_Close(&g_uart1_ctrl);      
-                uart1_dmac_init(); 
+                uart1_dmac_init(g_transfer_lidar_callback, NULL); 
                 last_data_tick = xTaskGetTickCount();
             }
         }
