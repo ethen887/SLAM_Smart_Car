@@ -8,10 +8,15 @@ int _write(int fd, char *buf, int size);
 
 /* UART2 正在发送数据时置为 true，发送完成后由中断回调清零。 */
 static volatile bool tx_busy = false;
+volatile bool g_uart2_tx_complete = true;
 
 /* UART2 发送完成回调：通知阻塞发送函数当前字符已经发送完毕。 */
 void g_uart2_callback(uart_callback_args_t *p_args)
 {
+    if (p_args->event == UART_EVENT_TX_COMPLETE)
+    {
+        g_uart2_tx_complete = true;
+    }
     if (p_args->event == UART_EVENT_TX_DATA_EMPTY)
     {
         tx_busy = false;

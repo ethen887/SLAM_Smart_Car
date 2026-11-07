@@ -62,4 +62,5 @@ target_sources(${PROJECT_NAME}.elf PRIVATE ${USER_SOURCES})
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Community"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Device"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Data_Process"
 )

@@ -1,8 +1,11 @@
 #ifndef UART_H
 #define UART_H
 
+#include "r_uart_api.h"
 #include "r_transfer_api.h"
 
+// UART2 的一次整块发送结束标志；由 UART2 中断回调置位。
+extern volatile bool g_uart2_tx_complete;
 // 函数声明
 void uart2_send(const char *s);
 typedef void (*uart_dmac_callback_t)(transfer_callback_args_t *p_args);
