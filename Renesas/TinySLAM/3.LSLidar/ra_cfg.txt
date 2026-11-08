@@ -429,8 +429,8 @@ FSP Configuration
       P515 P15 - - - - Disabled - - "ESWM_GMII/MII: ET_TAS_STA0; ESWM_RGMII: ET_TAS_STA0; ESWM_RMII: ET_TAS_STA0; GLCDC: LCD_CLK; GPT13: GTIOC13A; IIC2: SCL2; IRQ: IRQ12; SCI4: CTS_RTS4; SCI4: DE4" - None - - 
       P600 P3 - - - - Disabled - - "CAC: CACREF; ESWM_GMII/MII: ET1_WOL; ESWM_RGMII1: ET1_WOL; ESWM_RMII1: ET1_WOL; GPT6: GTIOC6B; IRQ: IRQ30; OSPI0: OM_0_RSTO1; ULPT1: ULPTEVI1-DS" - None - - 
       P601 P4 - - - - Disabled - - "GPT6: GTIOC6A; IRQ: IRQ29; OSPI0: OM_0_WP1; RTC: RTCOUT; SCI0: DE0; SCI0: SCK0; ULPT0: ULPTEVI0" - None - - 
-      P602 P2 - - - - Disabled - - "GPT7: GTIOC7B; IRQ: IRQ28; OSPI1: OM_1_SCLKN; SCI0: RXD0; ULPT0: ULPTEE0" - None - - 
-      P603 P1 - - - - Disabled - - "GPT7: GTIOC7A; IRQ: IRQ27; OSPI1: OM_1_SCLK; SCI0: TXD0; ULPT0: ULPTO0" - None - - 
+      P602 P2 SCI0_RXD0 - L None "Peripheral mode" - - "GPT7: GTIOC7B; IRQ: IRQ28; OSPI1: OM_1_SCLKN; SCI0: RXD0; ULPT0: ULPTEE0" - I - - 
+      P603 P1 SCI0_TXD0 - L None "Peripheral mode" - - "GPT7: GTIOC7A; IRQ: IRQ27; OSPI1: OM_1_SCLK; SCI0: TXD0; ULPT0: ULPTO0" - O - - 
       P604 N2 - - - - Disabled - - "GPT8: GTIOC8B; IRQ: IRQ26; OSPI1: OM_1_SIO7; SCI0: CTS_RTS0; SCI0: DE0" - None - - 
       P605 N1 - - - - Disabled - - "GPT8: GTIOC8A; IRQ: IRQ25; OSPI1: OM_1_SIO1; SCI0: CTS0" - None - - 
       P606 N3 - - - - Disabled - - "BUS: BC3; BUS: WR3; IRQ: IRQ24; OSPI1: OM_1_SIO6" - None - - 
@@ -457,8 +457,8 @@ FSP Configuration
       P711 N15 - - - - Disabled - - "AGT0: AGTEE0; ESWM_GMII/MII: GPTP0_PPS; ESWM_RGMII0: GPTP0_PPS; ESWM_RMII0: GPTP0_PPS; GLCDC: LCD_DATA19; GPT11: GTIOC11A; IRQ: IRQ3; SCI1: CTS_RTS1; SCI1: DE1; SPI1: SSLB2" - None - - 
       P712 N13 - - - - Disabled - - "AGT0: AGTOB0; ESWM_GMII/MII: GPTP1_CAPTURE; ESWM_RGMII1: GPTP1_CAPTURE; ESWM_RMII1: GPTP1_CAPTURE; GLCDC: LCD_DATA20; GPT2: GTIOC2B; IRQ: IRQ2; SCI1: CTS1; SPI1: SSLB1" - None - - 
       P713 N16 - - - - Disabled - - "AGT0: AGTOA0; ESWM_GMII/MII: GPTP1_MATCH; ESWM_RGMII1: GPTP1_MATCH; ESWM_RMII1: GPTP1_MATCH; GLCDC: LCD_DATA21; GPT2: GTIOC2A; IRQ: IRQ14; SCI4: CTS4" - None - - 
-      P714 N14 - - - - Disabled - - "ESWM_GMII/MII: GPTP1_PPS; ESWM_RGMII1: GPTP1_PPS; ESWM_RMII1: GPTP1_PPS; GLCDC: LCD_DATA22; GPT12: GTIOC12B; IRQ: IRQ13; MIPI: DSI_TE; SCI4: TXD4" - None - - 
-      P715 T15 - - - - Disabled - - "ESWM_GMII/MII: ET_TAS_STA2; ESWM_RGMII: ET_TAS_STA2; ESWM_RMII: ET_TAS_STA2; GLCDC: LCD_DATA23; GPT12: GTIOC12A; IRQ: IRQ12; SCI4: RXD4" - None - - 
+      P714 N14 SCI4_TXD4 - L None "Peripheral mode" - - "ESWM_GMII/MII: GPTP1_PPS; ESWM_RGMII1: GPTP1_PPS; ESWM_RMII1: GPTP1_PPS; GLCDC: LCD_DATA22; GPT12: GTIOC12B; IRQ: IRQ13; MIPI: DSI_TE; SCI4: TXD4" - O - - 
+      P715 T15 SCI4_RXD4 - L None "Peripheral mode" - - "ESWM_GMII/MII: ET_TAS_STA2; ESWM_RGMII: ET_TAS_STA2; ESWM_RMII: ET_TAS_STA2; GLCDC: LCD_DATA23; GPT12: GTIOC12A; IRQ: IRQ12; SCI4: RXD4" - I - - 
       P800 T6 - - - - Disabled - - "AGT0: AGTOA0; GPT11: GTIOC11A; GPT_OPS: GTIU; IRQ: IRQ11; OSPI0: OM_0_SIO5; SCI2: CTS2" - None - - 
       P801 P6 SCI2_TXD2 - L None "Peripheral mode" - - "AGT0: AGTOB0; ESWM_GMII/MII: GPTP1_PPS; ESWM_RGMII1: GPTP1_PPS; ESWM_RMII1: GPTP1_PPS; GPT11: GTIOC11B; GPT_OPS: GTIV; IRQ: IRQ12; OSPI0: OM_0_DQS; SCI2: TXD2" - O - - 
       P802 R6 SCI2_RXD2 - L None "Peripheral mode" - - "GPT12: GTIOC12A; GPT_OPS: GTIW; IRQ: IRQ18; OSPI0: OM_0_SIO6; SCI2: RXD2" - I - - 
@@ -730,7 +730,7 @@ FSP Configuration
       General: Data Bits: 8bits
       General: Parity: None
       General: Stop Bits: 1bit
-      Baud: Baud Rate: 460800
+      Baud: Baud Rate: 921600
       Baud: Baud Rate Modulation: Disabled
       Baud: Max Error (%): 2
       Flow Control: CTS/RTS Selection: Hardware RTS
@@ -794,72 +794,6 @@ FSP Configuration
       Interrupt Frequency: Interrupt after each block, or repeat size is transferred
       Offset value (Valid only when address mode is Offset addition): 1
       Source Buffer Size: 1
-      
-    Instance "g_timer4 Timer, General PWM (r_gpt)"
-      General: Name: g_timer4
-      General: Channel: 4
-      General: Mode: Periodic
-      General: Period: 100
-      General: Compare Match: Compare Match A: Status: Disabled
-      General: Compare Match: Compare Match A: Compare match value: 0x10000
-      General: Compare Match: Compare Match B: Status: Disabled
-      General: Compare Match: Compare Match B: Compare match value: 0x10000
-      General: Compare Match: Compare Match C: Status: Disabled
-      General: Compare Match: Compare Match C: Compare match value: 0x10000
-      General: Compare Match: Compare Match D: Status: Disabled
-      General: Compare Match: Compare Match D: Compare match value: 0x10000
-      General: Compare Match: Compare Match E: Status: Disabled
-      General: Compare Match: Compare Match E: Compare match value: 0x10000
-      General: Compare Match: Compare Match F: Status: Disabled
-      General: Compare Match: Compare Match F: Compare match value: 0x10000
-      General: Period Unit: Milliseconds
-      Output: Custom Waveform: GTIOA: Initial Output Level: Pin Level Low
-      Output: Custom Waveform: GTIOA: Cycle End Output Level: Pin Level Retain
-      Output: Custom Waveform: GTIOA: Compare Match Output Level: Pin Level Retain
-      Output: Custom Waveform: GTIOA: Retain Output Level at Count Stop: Disabled
-      Output: Custom Waveform: GTIOB: Initial Output Level: Pin Level Low
-      Output: Custom Waveform: GTIOB: Cycle End Output Level: Pin Level Retain
-      Output: Custom Waveform: GTIOB: Compare Match Output Level: Pin Level Retain
-      Output: Custom Waveform: GTIOB: Retain Output Level at Count Stop: Disabled
-      Output: Custom Waveform: Custom Waveform Enable: Disabled
-      Output: Duty Cycle Percent (only applicable in PWM mode): 50
-      Output: GTIOCA Output Enabled: False
-      Output: GTIOCA Stop Level: Pin Level Low
-      Output: GTIOCB Output Enabled: False
-      Output: GTIOCB Stop Level: Pin Level Low
-      Input: Count Up Source: 
-      Input: Count Down Source: 
-      Input: Start Source: 
-      Input: Stop Source: 
-      Input: Clear Source: 
-      Input: Capture A Source: 
-      Input: Capture B Source: 
-      Input: Noise Filter A Sampling Clock Select: No Filter
-      Input: Noise Filter B Sampling Clock Select: No Filter
-      Pin Polarity: GTIOCnA Polarity: Normal
-      Pin Polarity: GTIOCnB Polarity: Normal
-      Interrupts: Callback: timer4_callback
-      Interrupts: Overflow/Crest Interrupt Priority: Priority 10
-      Interrupts: Capture/Compare match A Interrupt Priority: Disabled
-      Interrupts: Capture/Compare match B Interrupt Priority: Disabled
-      Interrupts: Compare Match C Interrupt Priority: Disabled
-      Interrupts: Compare Match D Interrupt Priority: Disabled
-      Interrupts: Compare Match E Interrupt Priority: Disabled
-      Interrupts: Compare Match F Interrupt Priority: Disabled
-      Interrupts: Underflow/Trough Interrupt Priority: Disabled
-      Extra Features: Extra Features: Disabled
-      Extra Features: Output Disable: POEG Link: POEG Channel 0
-      Extra Features: Output Disable: Output Disable POEG Trigger: 
-      Extra Features: ADC Trigger: Start Event Trigger (Channels with GTINTAD only): 
-      Extra Features: ADC Trigger: ADC A Compare Match (Raw Counts): 0
-      Extra Features: ADC Trigger: ADC B Compare Match (Raw Counts): 0
-      Extra Features: Dead Time (Value range varies with Channel): Dead Time Count Up (Raw Counts): 0
-      Extra Features: Dead Time (Value range varies with Channel): Dead Time Count Down (Raw Counts) (Channels with GTDVD only): 0
-      Extra Features: Interrupt Skipping (Channels with GTITC only): Interrupt to Count: None
-      Extra Features: Interrupt Skipping (Channels with GTITC only): Interrupt Skip Count: 0
-      Extra Features: Interrupt Skipping (Channels with GTITC only): Skip ADC Events: None
-      Extra Features: Output Disable: GTIOCA Disable Setting: Disable Prohibited
-      Extra Features: Output Disable: GTIOCB Disable Setting: Disable Prohibited
       
     Instance "g_timer8 Timer, General PWM (r_gpt)"
       General: Name: g_timer8

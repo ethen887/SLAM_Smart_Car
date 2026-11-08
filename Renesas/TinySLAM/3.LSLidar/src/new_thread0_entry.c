@@ -2,19 +2,18 @@
 #include "new_thread0.h"
 #include "uart.h"
 #include "lidar_data_process.h"
+#include "lidar_n10.h"  
 #include "FreeRTOS.h"
 #include "task.h"
 #include <string.h>
+#include <stdio.h>
 
-/* 调试器观察变量；UART2 只输出原始二进制数据。 */
 volatile fsp_err_t g_lidar_test_error = FSP_SUCCESS;
-volatile uint32_t g_lidar_test_blocks_sent = 0U;
+volatile uint32_t g_lidar_parsed_frames = 0U;
 
-/* 接收队列由 lidar_data_process.c 定义；测试时只由本任务读取。 */
 extern LiDar_Data lidar_data_queue[LIDAR_DATA_QUEUE_SIZE];
 static uint8_t uart2_tx_buffer[LIDAR_DATA_BLOCK_SIZE];
 
-/** 初始化 UART2 和雷达接收，将接收到的原始数据发回电脑。 */
 void new_thread0_entry(void *pvParameters)
 {
     (void)pvParameters;
@@ -30,17 +29,16 @@ void new_thread0_entry(void *pvParameters)
         return;
     }
 
+    printf("\r\n=== Lidar Full Parsing Started ===\r\n");
+
     for (;;) {
         bool block_ready = false;
 
-        /* flag=false 表示此槽位有未处理的数据。
-         * 临界区内完成复制，防止回调在复制途中覆盖同一个槽位；
-         * 复制到独立数组后立即释放槽位，UART2 发送期间无需占用队列。 */
         taskENTER_CRITICAL();
         if (!lidar_data_queue[read_index].flag) {
             memcpy(uart2_tx_buffer, lidar_data_queue[read_index].raw_data,
                    LIDAR_DATA_BLOCK_SIZE);
-            lidar_data_queue[read_index].flag = true;
+            lidar_data_queue[read_index].flag = true; 
             read_index = (read_index + 1U) % LIDAR_DATA_QUEUE_SIZE;
             block_ready = true;
         }
@@ -51,24 +49,41 @@ void new_thread0_entry(void *pvParameters)
             continue;
         }
 
-        /* 整块发送而不是按字符串发送，保留数据中的 0x00。 */
-        g_uart2_tx_complete = false;
-        err = R_SCI_B_UART_Write(&g_uart2_ctrl, uart2_tx_buffer, LIDAR_DATA_BLOCK_SIZE);
-        if (err != FSP_SUCCESS) {
-            g_lidar_test_error = err;
-            vTaskSuspend(NULL);
-            return;
-        }
+        uint32_t raw_data_left = LIDAR_DATA_BLOCK_SIZE;
+        uint32_t offset = 0;
+        uint8_t frame_data[LIDAR_N10_FRAME_SIZE];
+        OnePointDef points[POINT_PER_PACK];
 
-        TickType_t started = xTaskGetTickCount();
-        while (!g_uart2_tx_complete) {
-            if ((xTaskGetTickCount() - started) >= pdMS_TO_TICKS(1000)) {
-                g_lidar_test_error = FSP_ERR_TIMEOUT;
-                vTaskSuspend(NULL);
-                return;
+        while (raw_data_left >= LIDAR_N10_FRAME_SIZE) {
+            size_t found_offset = 0;
+            
+            if (lidar_n10_find_frame(&uart2_tx_buffer[offset], 
+                                     raw_data_left, 
+                                     frame_data, 
+                                     &found_offset)) {
+                
+                if (lidar_n10_parse_points(frame_data, points, POINT_PER_PACK) != NULL) {
+                    g_lidar_parsed_frames++;
+                    
+                    // ★ 去掉限制，全部打印！但采用极致紧凑的格式，降低串口压力
+                    // 格式示例：A12.34D01234 （A后面是角度，D后面是距离mm）
+                    for (int p = 0; p < POINT_PER_PACK; p++) {
+                        // 因为角度是 0-36000（0.01度），这里直接取整输出，减少浮点运算
+                        printf("%d.%02d %d\n", 
+                               points[p].angle / 100, 
+                               points[p].angle % 100, 
+                               points[p].distance);
+                    }
+                }
+
+                offset += found_offset + LIDAR_N10_FRAME_SIZE;
+                raw_data_left -= found_offset + LIDAR_N10_FRAME_SIZE;
+            } else {
+                break;
             }
-            vTaskDelay(pdMS_TO_TICKS(1));
         }
-        g_lidar_test_blocks_sent++;
+        
+        // 让出 CPU，防止串口发送造成系统卡死
+        taskYIELD(); 
     }
 }
