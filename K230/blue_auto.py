@@ -74,6 +74,24 @@ try:
     sensor.run()
     clock = time.clock()
 
+    # ================= 新增：等待 RA8P1 发送启动指令 =================
+    print("Waiting for 'camera_ok' from RA8P1...")
+
+    # 清空一下之前可能存在的串口残留数据
+    if uart.any():
+        uart.read()
+
+    # 阻塞等待，直到收到 "camera_ok"
+    while True:
+        os.exitpoint()
+        if uart.any():
+            cmd = uart.read(20)
+            if cmd and b"camera_ok" in cmd:
+                print("Received 'camera_ok', starting vision task!")
+                break
+        time.sleep_ms(10)  # 避免死循环跑满 CPU
+    # ==============================================================
+
     last_sent_x = -999
     last_sent_area = -999
     fps = 0
@@ -167,6 +185,9 @@ try:
         if now - fps_t >= 1000:
             fps = int(clock.fps())
             fps_t = now
+
+        # ★ 核心修改点：强制加上 15ms 的延时，把发送频率限制在 60Hz 左右，防止串口冲爆单片机！
+        time.sleep_ms(15)
 
 except KeyboardInterrupt as e:
     print("user stop: ", e)

@@ -1,4 +1,4 @@
-#Sun Nov 08 16:14:08 CST 2026
+#Sun Nov 08 20:55:44 CST 2026
 com.renesas.cdt.ddsc.content/com.renesas.cdt.ddsc.content.defaultlinkerscript=script/fsp.ld
 com.renesas.cdt.ddsc.contentgen.options/options/suppresswarningspaths=ra/arm,ra/aws
 com.renesas.cdt.ddsc.contentgen.options/options/toolchainversion=13.2.1
@@ -22,6 +22,8 @@ com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#Common\#\#all\#\#fsp_common
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#Common\#\#all\#\#fsp_common\#\#\#\#6.5.0/libraries=
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_dmac\#\#\#\#6.5.0/all=3412164478,ra/fsp/inc/api/r_transfer_api.h|1501073843,ra/fsp/inc/instances/r_dmac.h|377261834,ra/fsp/src/r_dmac/r_dmac.c
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_dmac\#\#\#\#6.5.0/libraries=
+com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_dtc\#\#\#\#6.5.0/all=3412164478,ra/fsp/inc/api/r_transfer_api.h|899217706,ra/fsp/inc/instances/r_dtc.h|148736719,ra/fsp/src/r_dtc/r_dtc.c
+com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_dtc\#\#\#\#6.5.0/libraries=
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_gpt\#\#\#\#6.5.0/all=254185379,ra/fsp/inc/api/r_timer_api.h|3105831900,ra/fsp/inc/instances/r_gpt.h|827300049,ra/fsp/src/r_gpt/r_gpt.c
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_gpt\#\#\#\#6.5.0/libraries=
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_ioport\#\#\#\#6.5.0/all=1630225429,ra/fsp/inc/api/r_ioport_api.h|1676708329,ra/fsp/inc/instances/r_ioport.h|557850714,ra/fsp/src/r_ioport/r_ioport.c
@@ -36,3 +38,5 @@ com.renesas.cdt.ddsc.project.standalone.projectgenerationoptions/isCpp=false
 com.renesas.cdt.ddsc.settingseditor/com.renesas.cdt.ddsc.settingseditor.active_page=SWPConfigurator
 com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.uart_on_sci_b_uart.1437790290=false
 com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.uart_on_sci_b_uart.539075881=false
+com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.uart_on_sci_b_uart.754255129=false
+com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.uart_on_sci_b_uart.86135002=false

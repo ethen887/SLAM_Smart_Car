@@ -28,7 +28,8 @@ fsp_err_t lidar_data_process_init(void)
     if(state != FSP_SUCCESS) {
         return state; // 注册失败
     }
-    state = uart_dmac_init(&lidar_uart_dmac_config);
+    // 第一个参数传 DMAC 配置，第二个参数传 NULL（因为雷达这里不用 DTC）
+    state = uart_init(&lidar_uart_dmac_config, NULL);
     if(state != FSP_SUCCESS) {
         return FSP_ERR_INVALID_ARGUMENT; // 初始化失败，直接返回
     }

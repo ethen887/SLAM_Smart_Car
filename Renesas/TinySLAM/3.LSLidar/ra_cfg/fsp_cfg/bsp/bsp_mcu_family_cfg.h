@@ -110,11 +110,11 @@
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 24) /* SCI7 */ | \
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 25) /* SCI6 */ | \
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 26) /* SCI5 */ | \
-            (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 27) /* SCI4 */ | \
+            (((1 > 0) ? 0U : 1U) << 27) /* SCI4 */ | \
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 28) /* SCI3 */ | \
             (((1 > 0) ? 0U : 1U) << 29) /* SCI2 */ | \
             (((1 > 0) ? 0U : 1U) << 30) /* SCI1 */ | \
-            (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 31) /* SCI0 */)
+            (((1 > 0) ? 0U : 1U) << 31) /* SCI0 */)
 #endif
 #ifndef BSP_TZ_CFG_PSARC
 #define BSP_TZ_CFG_PSARC (\
@@ -303,7 +303,7 @@
 #define BSP_TZ_CFG_DMACCHSAR (\
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 0U) /* DMACx Channel 0 */ | \
             (((1 > 0) ? 0U : 1U) << 1U) /* DMACx Channel 1 */ | \
-            (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 2U) /* DMACx Channel 2 */ | \
+            (((1 > 0) ? 0U : 1U) << 2U) /* DMACx Channel 2 */ | \
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 3U) /* DMACx Channel 3 */ | \
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 4U) /* DMACx Channel 4 */ | \
             (((RA_NOT_DEFINED > 0) ? 0U : 1U) << 5U) /* DMACx Channel 5 */ | \
@@ -332,7 +332,7 @@
 #endif
 
             /* Set DTCSTSAR if the Secure program uses the DTC. */
-#if RA_NOT_DEFINED == RA_NOT_DEFINED
+#if 2 == RA_NOT_DEFINED
  #define BSP_TZ_CFG_DTC_USED (0U)
 #else
  #define BSP_TZ_CFG_DTC_USED (1U)

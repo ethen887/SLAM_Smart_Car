@@ -1,61 +1,6 @@
 #include "hal_data.h"
 #include "uart.h"
 
-/* ================= UART2 调试串口 ================= */
-
-/* 为 printf 提供底层字符输出接口。 */
-int _write(int fd, char *buf, int size);
-
-/* UART2 正在发送数据时置为 true，发送完成后由中断回调清零。 */
-static volatile bool tx_busy = false;
-volatile bool g_uart2_tx_complete = true;
-
-/* UART2 发送完成回调：通知阻塞发送函数当前字符已经发送完毕。 */
-void g_uart2_callback(uart_callback_args_t *p_args)
-{
-    if (p_args->event == UART_EVENT_TX_COMPLETE)
-    {
-        g_uart2_tx_complete = true;
-    }
-    if (p_args->event == UART_EVENT_TX_DATA_EMPTY)
-    {
-        tx_busy = false;
-    }
-}
-
-/* 发送一个字符，并等待 UART 硬件发送完成；超时后退出等待。 */
-static void uart2_putc(char c)
-{
-    tx_busy = true;
-    R_SCI_B_UART_Write(&g_uart2_ctrl, (uint8_t *)&c, 1);
-
-    uint32_t timeout = 100000;
-    while (tx_busy && timeout--)
-    {
-        R_BSP_SoftwareDelay(1, BSP_DELAY_UNITS_MICROSECONDS);
-    }
-}
-
-/* 逐字符发送以 '\0' 结尾的字符串。 */
-void uart2_send(const char *s)
-{
-    while (*s)
-    {
-        uart2_putc(*s++);
-    }
-}
-
-/* 重定向标准输出，使 printf 的内容通过 UART2 发送。 */
-int _write(int fd, char *buf, int size)
-{
-    (void)fd;
-    for (int i = 0; i < size; i++)
-    {
-        uart2_putc(buf[i]);
-    }
-    return size;
-} 
-
 /**
  * @brief 使用指定 UART 和 DMAC 接收数据。
  *
@@ -96,58 +41,146 @@ fsp_err_t uart_dmac_register(
 }
 
 /**
- * @brief 初始化 UART 和 DMAC，并开始接收数据
+ * @brief 使用指定 UART 和 DTC 进行配置。
  *
- * @param config UART 和 DMAC 的配置结构体。
- * @return fsp_err_t 初始化结果。
+ * @param uart         要使用的 UART 实例。
+ * @param dtc          要使用的 DTC 实例。
+ * @param callback     UART 事件（接收字符/发送完成等）的回调。
+ * @param config       UART 和 DTC 的配置结构体指针。
  */
-fsp_err_t uart_dmac_init(uart_dmac_config_t *config)
+fsp_err_t uart_dtc_register(
+    const uart_instance_t       *uart,
+    const transfer_instance_t   *dtc,
+    uart_dtc_callback_t         callback,
+    uart_dtc_config_t          *config)
 {
-    fsp_err_t state; // 检查函数返回值
-
-    // 检查参数是否为空
-    if ((config == NULL) ||
-        (config->uart == NULL) ||
-        (config->dmac == NULL) ||
-        (config->rx_register == NULL) ||
-        (config->buffer == NULL) ||
-        (config->callback == NULL))
+    if ((uart == NULL) ||
+        (dtc == NULL) ||
+        (callback == NULL) ||
+        (config == NULL))
     {
         return FSP_ERR_ASSERTION;
     }
 
-    // 打开调用者传入的 UART
-    state = config->uart->p_api->open(config->uart->p_ctrl, config->uart->p_cfg);
+    config->uart = uart;
+    config->dtc = dtc;
+    config->callback = callback;
+
+    return FSP_SUCCESS;
+}
+
+/**
+ * @brief 统一的 UART 初始化（融合 DMAC 接收和 DTC 发送）
+ *
+ * @param dmac_config DMAC 配置结构体指针（如不需要可传 NULL）
+ * @param dtc_config  DTC 配置结构体指针（如不需要可传 NULL）
+ * @return fsp_err_t 初始化结果。
+ */
+fsp_err_t uart_init(uart_dmac_config_t *dmac_config, uart_dtc_config_t *dtc_config)
+{
+    fsp_err_t state;
+    const uart_instance_t *uart = NULL;
+
+    // 检查参数，至少需要一个有效的配置
+    if ((dmac_config == NULL) && (dtc_config == NULL))
+    {
+        return FSP_ERR_ASSERTION;
+    }
+
+    // 获取 UART 实例（优先从 dmac_config 取，没有再取 dtc_config 的）
+    if (dmac_config != NULL)
+    {
+        uart = dmac_config->uart;
+    }
+    else if (dtc_config != NULL)
+    {
+        uart = dtc_config->uart;
+    }
+
+    if (uart == NULL)
+    {
+        return FSP_ERR_ASSERTION;
+    }
+
+    // 如果同时传入了两个配置，确保是同一个 UART 实例
+    if ((dmac_config != NULL) && (dtc_config != NULL))
+    {
+        if (dmac_config->uart != dtc_config->uart)
+        {
+            return FSP_ERR_ASSERTION;
+        }
+    }
+
+    // 1. 打开调用者传入的 UART（只打开一次，避免重复打开报错）
+    state = uart->p_api->open(uart->p_ctrl, uart->p_cfg);
     if (state != FSP_SUCCESS)
     {
         return state;
     }
 
-    // 关闭这个 UART 的 RXI 对应 CPU 路由
-    R_ICU->IELSR[config->uart->p_cfg->rxi_irq] = 0U;
-
-    // 打开调用者传入的 DMAC
-    state = config->dmac->p_api->open(config->dmac->p_ctrl, config->dmac->p_cfg);
-    if (state != FSP_SUCCESS)
+    // 2. 如果配置了 DMAC，则初始化 DMAC 接收
+    if (dmac_config != NULL)
     {
-        return state;
-    }
-    
-    // 注册调用者提供的回调
-    state = config->dmac->p_api->callbackSet(
-        config->dmac->p_ctrl,
-        config->callback,
-        NULL,
-        NULL);
-    if (state != FSP_SUCCESS)
-    {
-        return state;
+        if ((dmac_config->dmac == NULL) ||
+            (dmac_config->rx_register == NULL) ||
+            (dmac_config->buffer == NULL) ||
+            (dmac_config->callback == NULL))
+        {
+            return FSP_ERR_ASSERTION;
+        }
+
+        // 关闭这个 UART 的 RXI 对应 CPU 路由
+        R_ICU->IELSR[uart->p_cfg->rxi_irq] = 0U;
+
+        // 打开调用者传入的 DMAC
+        state = dmac_config->dmac->p_api->open(dmac_config->dmac->p_ctrl, dmac_config->dmac->p_cfg);
+        if (state != FSP_SUCCESS)
+        {
+            return state;
+        }
+        
+        // 注册调用者提供的回调
+        state = dmac_config->dmac->p_api->callbackSet(
+            dmac_config->dmac->p_ctrl,
+            dmac_config->callback,
+            NULL,
+            NULL);
+        if (state != FSP_SUCCESS)
+        {
+            return state;
+        }
+
+        // 配置并启动 DMA 接收
+        state = dmac_config->dmac->p_api->reset(
+            dmac_config->dmac->p_ctrl,
+            dmac_config->rx_register,
+            dmac_config->buffer,
+            dmac_config->repeat_count);
+        if (state != FSP_SUCCESS)
+        {
+            return state;
+        }
     }
 
-    // 配置并启动 DMA 接收
-    return config->dmac->p_api->reset(
-        config->dmac->p_ctrl,
-        config->rx_register,
-        config->buffer,
-        config->repeat_count);
+    // 3. 如果配置了 DTC，则注册 UART 回调（DTC 的挂载已在 UART Open 时自动完成）
+    if (dtc_config != NULL)
+    {
+        if ((dtc_config->dtc == NULL) || (dtc_config->callback == NULL))
+        {
+            return FSP_ERR_ASSERTION;
+        }
+
+        // 注册调用者提供的回调（用于接收逐字节中断、以及发送完成事件）
+        state = uart->p_api->callbackSet(
+            uart->p_ctrl,
+            dtc_config->callback,
+            NULL,
+            NULL);
+        if (state != FSP_SUCCESS)
+        {
+            return state;
+        }
+    }
+
+    return FSP_SUCCESS;
 }
