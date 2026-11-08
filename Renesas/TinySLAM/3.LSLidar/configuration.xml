@@ -484,7 +484,7 @@
       <property id="module.driver.uart.data_bits" value="module.driver.uart.data_bits.data_bits_8"/>
       <property id="module.driver.uart.parity" value="module.driver.uart.parity.parity_off"/>
       <property id="module.driver.uart.stop_bits" value="module.driver.uart.stop_bits.stop_bits_1"/>
-      <property id="module.driver.uart.baud" value="115200"/>
+      <property id="module.driver.uart.baud" value="460800"/>
       <property id="module.driver.uart.baudrate_modulation" value="module.driver.uart.baudrate_modulation.disabled"/>
       <property id="module.driver.uart.baudrate_max_err" value="2"/>
       <property id="module.driver.uart.flow_control" value="module.driver.uart.flow_control.rts"/>
@@ -526,7 +526,7 @@
       <property id="module.driver.uart.rs485.de_assertion_time" value="1"/>
       <property id="module.driver.uart.rs485.de_negation_time" value="1"/>
       <property id="module.driver.uart.tei_synchronization_delay_cycles" value="0"/>
-      <property id="module.driver.uart.callback" value="g_uart1_callback"/>
+      <property id="module.driver.uart.callback" value="NULL"/>
       <property id="module.driver.uart.rxi_ipl" value="board.icu.common.irq.priority12"/>
       <property id="module.driver.uart.txi_ipl" value="board.icu.common.irq.priority12"/>
       <property id="module.driver.uart.tei_ipl" value="board.icu.common.irq.priority12"/>

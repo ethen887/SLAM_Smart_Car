@@ -39,8 +39,8 @@ void g_transfer_lidar_callback(transfer_callback_args_t * p_args);
             extern const uart_cfg_t g_uart1_cfg;
             extern const sci_b_uart_extended_cfg_t g_uart1_cfg_extend;
 
-            #ifndef g_uart1_callback
-            void g_uart1_callback(uart_callback_args_t * p_args);
+            #ifndef NULL
+            void NULL(uart_callback_args_t * p_args);
             #endif
 /** UART on SCI Instance. */
             extern const uart_instance_t      g_uart2;

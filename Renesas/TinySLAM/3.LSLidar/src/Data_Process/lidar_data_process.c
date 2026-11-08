@@ -78,3 +78,10 @@ void LiDar_Data_Process(void) // 处理队列中的数据
         process_index = (process_index + 1) % (LIDAR_DATA_QUEUE_SIZE); // 更新处理索引
     }
 }
+
+/** FSP 生成配置要求的初始 DMAC 回调。
+ *  uart_dmac_init() 会在启动 DMA 之前将它替换为雷达模块的回调。 */
+void g_transfer_lidar_callback(transfer_callback_args_t *p_args)
+{
+    (void)p_args;
+}
