@@ -18,7 +18,7 @@ typedef struct{
     uint8_t raw_data[LIDAR_DATA_BLOCK_SIZE]; // 触发一次DMA中断时接收的原始数据
     uint8_t data[(LIDAR_DATA_BLOCK_SIZE) / (LIDAR_N10_FRAME_SIZE)][LIDAR_N10_FRAME_SIZE]; // 提取帧后的数据,前面的索引号表示第几帧，后面的索引号表示帧内的字节
     OnePointDef points[(LIDAR_DATA_BLOCK_SIZE) / (LIDAR_N10_FRAME_SIZE)][POINT_PER_PACK]; // 提取帧后的点云数据，前面的索引号表示第几帧，后面的索引号表示帧内的点
-    uint32_t time_tamp;             // 时间
+    uint64_t time_tamp;             // 时间
     volatile bool flag;                      // 标志位,用来判断数据是否被解析过了
 }LiDar_Data;
 

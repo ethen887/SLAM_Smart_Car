@@ -5,22 +5,31 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-volatile uint32_t g_last_ts = 0;
+// 硬件时钟 200MHz，1 微秒 = 200 个 tick
+#define GPT_TICKS_PER_US 200ULL 
 
-uint32_t gpt_get_timestamp_ticks(void)
-{
-    return (uint32_t)xTaskGetTickCountFromISR();
-}
+static uint32_t s_last_cnt = 0;
+static uint64_t s_acc_ticks = 0;
 
-/* GPT 周期中断仅更新时间；雷达任务由 DMAC 回调直接通知。 */
-void timer4_callback(timer_callback_args_t *p_args)
+uint64_t gpt_get_timestamp_us(void)
 {
-    (void)p_args;
-    g_last_ts = gpt_get_timestamp_ticks();
+    timer_status_t st; 
+    R_GPT_StatusGet(&g_timer8_ctrl, &st); 
+    
+    // 计算与上次读取的差值（无符号减法自动处理 32 位回绕）
+    uint32_t d = st.counter - s_last_cnt; 
+    s_last_cnt = st.counter;
+    
+    // 累加到 64 位变量中
+    s_acc_ticks += d;
+    
+    // 转换为微秒返回
+    return s_acc_ticks / GPT_TICKS_PER_US;
 }
 
 void gpt_init(void)
 {
-    (void)R_GPT_Open(&g_timer4_ctrl, &g_timer4_cfg);
-    (void)R_GPT_Start(&g_timer4_ctrl);
+    // 仅初始化并启动作为秒表的定时器 8
+    (void)R_GPT_Open(&g_timer8_ctrl, &g_timer8_cfg);
+    (void)R_GPT_Start(&g_timer8_ctrl);
 }

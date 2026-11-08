@@ -42,7 +42,7 @@ static void lidar_dma_callback(transfer_callback_args_t *p_args)
     static uint32_t receive_index = 0; // 记录是第几次DMA中断回调
     // 将 DMA 接收到的数据复制到队列中
     memcpy(lidar_data_queue[receive_index].raw_data, lidar_dma_raw_data, LIDAR_DATA_BLOCK_SIZE);
-    lidar_data_queue[receive_index].time_tamp = gpt_get_timestamp_ticks(); // 获取当前时间戳
+    lidar_data_queue[receive_index].time_tamp = gpt_get_timestamp_us(); // 获取当前时间戳
     lidar_data_queue[receive_index].flag = false; // 收到这次数据时标记为为处理状态
     // 更新队列索引
     receive_index = (receive_index + 1) % LIDAR_DATA_QUEUE_SIZE;

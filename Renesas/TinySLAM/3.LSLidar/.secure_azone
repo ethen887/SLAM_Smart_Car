@@ -18,6 +18,7 @@
         </peripheral>
         <peripheral name="DMA_DMAC1.CPU0" group="DMA_DMAC" security="s"/>
         <peripheral name="GPT4.CPU0" group="GPT" security="s"/>
+        <peripheral name="GPT8.CPU0" group="GPT" security="s"/>
         <peripheral name="ICU.CPU0">
             <slot name="IRQ0.CPU0" secure="true"/>
             <slot name="IRQ1.CPU0" secure="true"/>

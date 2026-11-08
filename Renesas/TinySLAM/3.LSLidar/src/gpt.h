@@ -3,9 +3,15 @@
 
 #include <stdint.h>
 
-extern volatile uint32_t g_last_ts;
-
+/**
+ * @brief 初始化计时器 (g_timer8)
+ */
 void gpt_init(void);
-uint32_t gpt_get_timestamp_ticks(void);
+
+/**
+ * @brief 获取自开机以来的微秒级时间戳 (64位防溢出)
+ * @return uint64_t 微秒数
+ */
+uint64_t gpt_get_timestamp_us(void);
 
 #endif
