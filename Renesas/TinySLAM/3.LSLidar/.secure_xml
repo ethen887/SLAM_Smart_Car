@@ -171,8 +171,8 @@
       <configSetting altId="sci1.txd1.p707" configurationId="sci1.txd1" isUsedByDriver="true" peripheral="SCI1"/>
       <configSetting altId="sci2.rxd2.p802" configurationId="sci2.rxd2" isUsedByDriver="true" peripheral="SCI2"/>
       <configSetting altId="sci2.txd2.p801" configurationId="sci2.txd2" isUsedByDriver="true" peripheral="SCI2"/>
-      <configSetting altId="sci4.rxd4.p715" configurationId="sci4.rxd4" isUsedByDriver="true" peripheral="SCI4"/>
-      <configSetting altId="sci4.txd4.p714" configurationId="sci4.txd4" isUsedByDriver="true" peripheral="SCI4"/>
+      <configSetting altId="sci4.rxd4.p715" configurationId="sci4.rxd4" peripheral="SCI4"/>
+      <configSetting altId="sci4.txd4.p714" configurationId="sci4.txd4" peripheral="SCI4"/>
     </pincfg>
   </raPinConfiguration>
 </raConfiguration>

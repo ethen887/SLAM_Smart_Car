@@ -1,52 +1,10 @@
 #include "lidar_n10.h"
 #include <string.h>
 
+// 修改 lidar_n10.c
 OnePointDef PointCloudBuffer[MAX_POINTS];
 volatile uint16_t point_cloud_count = 0;
 LiDARFrameTypeDef Pack_Data;
-volatile uint32_t g_valid_frame_cnt = 0; // 探照灯变量
-
-/* 保存跨 DMA 数据块的不完整帧；仅由同一个任务访问。 */
-static uint8_t frame_buffer[LIDAR_N10_FRAME_SIZE];
-static size_t frame_buffer_len = 0;
-
-void lidar_n10_init(void)
-{
-    frame_buffer_len = 0;
-    point_cloud_count = 0;
-    g_valid_frame_cnt = 0;
-    memset(&Pack_Data, 0, sizeof(Pack_Data));
-}
-
-static void data_process(void)
-{
-    g_valid_frame_cnt++; // 校验成功，计数加 1
-
-    uint16_t start_angle = ((uint16_t)Pack_Data.start_angle_h << 8) + Pack_Data.start_angle_l;
-    uint16_t end_angle = ((uint16_t)Pack_Data.end_angle_h << 8) + Pack_Data.end_angle_l;
-
-    if (point_cloud_count + 16 >= MAX_POINTS) {
-        return; 
-    }
-
-    for (uint8_t i = 0; i < 16; i++) {
-        uint16_t dist = ((uint16_t)Pack_Data.point[i].distance_h << 8) + Pack_Data.point[i].distance_l;
-        
-        if (dist > 40 && dist < 12000) {
-            PointCloudBuffer[point_cloud_count].distance = dist;
-            
-            // 显式强转消除编译器警告
-            float ratio = (float)i / 15.0f;
-            float angle = (float)start_angle + (float)((end_angle >= start_angle ? end_angle : end_angle + 36000) - start_angle) * ratio;
-            
-            while (angle >= 36000.0f) angle -= 36000.0f;
-            while (angle < 0.0f) angle += 36000.0f;
-
-            PointCloudBuffer[point_cloud_count].angle = (uint16_t)angle;
-            point_cloud_count++;
-        }
-    }
-}
 
 /**
  * @brief 检查完整 N10 数据帧的帧头、长度和累加校验。

@@ -42,9 +42,7 @@ typedef struct {
 extern OnePointDef PointCloudBuffer[MAX_POINTS];
 extern volatile uint16_t point_cloud_count;
 extern LiDARFrameTypeDef Pack_Data;
-extern volatile uint32_t g_valid_frame_cnt; // 探照灯：成功解析帧数
 
-void lidar_n10_init(void);
 /* 输入任意长度的连续数据，返回本次成功解析的帧数。 */
 
 /** @brief 从给定范围中查找并复制一帧完整有效数据。 */
