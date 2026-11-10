@@ -5,15 +5,16 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-// 协议定义：帧头 0xA8 + X(4) + Y(4) + Yaw(4) = 13 字节
+// 协议定义：帧头 0xA8 + 时间戳(4) + X(4) + Y(4) + Yaw(4) = 17 字节
 #define STM32_HEADER 0xA8
-#define STM32_FRAME_SIZE 13U
+#define STM32_FRAME_SIZE 17U  // ★ 长度从 13U 改为 17U
 
 /* 解析后的位姿数据结构体 */
 typedef struct {
-    float x;        // X 坐标 (m)
-    float y;        // Y 坐标 (m)
-    float yaw;      // 航向角 (rad)
+    uint32_t timestamp; // 时间戳
+    float x;            // X 坐标 (m)
+    float y;            // Y 坐标 (m)
+    float yaw;          // 航向角 (rad)
 } Stm32PoseDef;
 
 /**

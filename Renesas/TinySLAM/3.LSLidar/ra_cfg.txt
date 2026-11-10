@@ -806,7 +806,7 @@ FSP Configuration
       Number of Transfers: 580
       Number of Blocks (Valid only in Repeat,Block or Repeat-Block Mode): 0
       Activation Source: SCI1 RXI (Receive data full)
-      Callback: g_transfer_lidar_callback
+      Callback: lidar_dma_callback
       Transfer End Interrupt Priority: Priority 8
       Interrupt Frequency: Interrupt after each block, or repeat size is transferred
       Offset value (Valid only when address mode is Offset addition): 1
@@ -913,10 +913,10 @@ FSP Configuration
       Destination Address Mode: Incremented
       Source Address Mode: Fixed
       Repeat Area (Unused in Normal Mode): Destination
-      Number of Transfers: 65
+      Number of Transfers: 85
       Number of Blocks (Valid only in Repeat,Block or Repeat-Block Mode): 0
       Activation Source: SCI0 RXI (Receive data full)
-      Callback: g_transfer_stm32_callback
+      Callback: stm32_dma_callback
       Transfer End Interrupt Priority: Priority 7
       Interrupt Frequency: Interrupt after each block, or repeat size is transferred
       Offset value (Valid only when address mode is Offset addition): 1

@@ -547,7 +547,7 @@
       <property id="module.driver.transfer.length" value="580"/>
       <property id="module.driver.transfer.num_blocks" value="0"/>
       <property id="module.driver.transfer.activation_event" value="_signal.event.sci1.rxi"/>
-      <property id="module.driver.transfer.p_callback" value="g_transfer_lidar_callback"/>
+      <property id="module.driver.transfer.p_callback" value="lidar_dma_callback"/>
       <property id="module.driver.transfer.ipl" value="board.icu.common.irq.priority8"/>
       <property id="module.driver.transfer.interrupt" value="module.driver.transfer.interrupt.interrupt_each"/>
       <property id="module.driver.transfer.offset" value="1"/>
@@ -654,10 +654,10 @@
       <property id="module.driver.transfer.dest_addr_mode" value="module.driver.transfer.dest_addr_mode.addr_mode_incremented"/>
       <property id="module.driver.transfer.src_addr_mode" value="module.driver.transfer.src_addr_mode.addr_mode_fixed"/>
       <property id="module.driver.transfer.repeat_area" value="module.driver.transfer.repeat_area.repeat_area_destination"/>
-      <property id="module.driver.transfer.length" value="65"/>
+      <property id="module.driver.transfer.length" value="85"/>
       <property id="module.driver.transfer.num_blocks" value="0"/>
       <property id="module.driver.transfer.activation_event" value="_signal.event.sci0.rxi"/>
-      <property id="module.driver.transfer.p_callback" value="g_transfer_stm32_callback"/>
+      <property id="module.driver.transfer.p_callback" value="stm32_dma_callback"/>
       <property id="module.driver.transfer.ipl" value="board.icu.common.irq.priority7"/>
       <property id="module.driver.transfer.interrupt" value="module.driver.transfer.interrupt.interrupt_each"/>
       <property id="module.driver.transfer.offset" value="1"/>

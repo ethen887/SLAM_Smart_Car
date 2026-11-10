@@ -20,8 +20,8 @@ extern const transfer_instance_t g_transfer_stm32;
 extern dmac_instance_ctrl_t g_transfer_stm32_ctrl;
 extern const transfer_cfg_t g_transfer_stm32_cfg;
 
-#ifndef g_transfer_stm32_callback
-void g_transfer_stm32_callback(transfer_callback_args_t * p_args);
+#ifndef stm32_dma_callback
+void stm32_dma_callback(transfer_callback_args_t * p_args);
 #endif
 /** UART on SCI Instance. */
             extern const uart_instance_t      g_uart0;
@@ -51,8 +51,8 @@ extern const transfer_instance_t g_transfer_lidar;
 extern dmac_instance_ctrl_t g_transfer_lidar_ctrl;
 extern const transfer_cfg_t g_transfer_lidar_cfg;
 
-#ifndef g_transfer_lidar_callback
-void g_transfer_lidar_callback(transfer_callback_args_t * p_args);
+#ifndef lidar_dma_callback
+void lidar_dma_callback(transfer_callback_args_t * p_args);
 #endif
 /** UART on SCI Instance. */
             extern const uart_instance_t      g_uart1;

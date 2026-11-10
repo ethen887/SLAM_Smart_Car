@@ -7,7 +7,7 @@
 #include "link_stm32.h"
 
 /* 单次 DMAC 搬运字节数，即 FSP 中的 Number of Transfers。 */
-#define STM32_DATA_BLOCK_SIZE 65U
+#define STM32_DATA_BLOCK_SIZE 85U
 /* Repeat 模式的最大非零重复组数；耗尽后 DMAC 停止。 */
 #define STM32_DATA_REPEAT_COUNT UINT16_MAX
 /* 环形队列槽位数，用于保存触发某次DMA中断时的DMA已经搬运好的数据 */

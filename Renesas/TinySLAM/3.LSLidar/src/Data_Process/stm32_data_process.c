@@ -8,8 +8,6 @@
 Stm32_Data stm32_data_queue[STM32_DATA_QUEUE_SIZE]; // 环形队列，用于保存触发某次DMA中断时的DMA已经搬运好的数据
 static uart_dmac_config_t stm32_uart_dmac_config; // UART 和 DMAC 的配置结构体
 static uint8_t stm32_dma_raw_data[STM32_DATA_BLOCK_SIZE]; // 用于 DMA 接收的原始数据缓冲区
-
-static void stm32_dma_callback(transfer_callback_args_t *p_args); // DMA中断回调函数声明
  
 fsp_err_t stm32_data_process_init(void)
 {
@@ -37,7 +35,7 @@ fsp_err_t stm32_data_process_init(void)
     return FSP_SUCCESS;
 }
 
-static void stm32_dma_callback(transfer_callback_args_t *p_args)
+void stm32_dma_callback(transfer_callback_args_t *p_args)
 {
     (void)p_args;
     static uint32_t receive_index = 0; // 记录是第几次DMA中断回调
@@ -78,11 +76,4 @@ void Stm32_Data_Process(void) // 处理队列中的数据
         stm32_data_queue[process_index].flag = true; // 标记数据已处理
         process_index = (process_index + 1) % (STM32_DATA_QUEUE_SIZE); // 更新处理索引
     }
-}
-
-/** FSP 生成配置要求的初始 DMAC 回调。
- *  uart_init() 会在启动 DMA 之前将它替换为 STM32 模块的回调。 */
-void g_transfer_stm32_callback(transfer_callback_args_t *p_args)
-{
-    (void)p_args;
 }

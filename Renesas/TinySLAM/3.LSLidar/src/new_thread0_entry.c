@@ -48,6 +48,7 @@ void new_thread0_entry(void *pvParameters)
 
     // 用于保存当前最新的底盘位姿
     float current_x = 0.0f, current_y = 0.0f, current_yaw = 0.0f;
+    uint32_t current_stm32_time = 0; // ★ 新增：保存最新时间戳
 
     for (;;) {
         // ==========================================================
@@ -73,7 +74,8 @@ void new_thread0_entry(void *pvParameters)
                 size_t found_offset = 0;
                 if (stm32_pose_find_frame(&stm32_rx_buffer[offset], raw_data_left, frame_data, &found_offset)) {
                     if (stm32_pose_parse_frame(frame_data, &pose) != NULL) {
-                        // 只要收到，就持续覆盖更新，保证用的是最新一帧坐标
+                        // 只要收到，就持续覆盖更新，保证用的是最新一帧坐标和时间戳
+                        current_stm32_time = pose.timestamp; // ★ 记录时间戳
                         current_x = pose.x;
                         current_y = pose.y;
                         current_yaw = pose.yaw;
@@ -121,9 +123,10 @@ void new_thread0_entry(void *pvParameters)
                     if (lidar_n10_parse_points(frame_data, points, POINT_PER_PACK) != NULL) {
                         
                         if (total_tx_len < sizeof(tx_buf) - 512) {
-                            // a. 拼装位姿 (X, Y, Yaw)
+                            // a. 拼装位姿 (时间戳, X, Y, Yaw)
                             total_tx_len += snprintf(&tx_buf[total_tx_len], sizeof(tx_buf) - total_tx_len, 
-                                                     "%d,%d,%d,", ix, iy, iyaw);
+                                                     "%u,%d,%d,%d,", 
+                                                     current_stm32_time, ix, iy, iyaw); // ★ 加了时间戳
                             
                             // b. 拼装 16 个雷达点 (角度.小数, 距离)
                             for (int p = 0; p < POINT_PER_PACK; p++) {

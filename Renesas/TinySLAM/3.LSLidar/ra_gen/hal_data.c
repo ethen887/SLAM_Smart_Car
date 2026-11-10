@@ -15,7 +15,7 @@ transfer_info_t g_transfer_stm32_info =
     .p_dest                                  = (void *) NULL,
     .p_src                                   = (void const *) NULL,
     .num_blocks                              = 0,
-    .length                                  = 65,
+    .length                                  = 85,
 };
 const dmac_extended_cfg_t g_transfer_stm32_extend =
 {
@@ -28,7 +28,7 @@ const dmac_extended_cfg_t g_transfer_stm32_extend =
 #endif
     .ipl                 = (7),
     .channel             = 2,
-    .p_callback          = g_transfer_stm32_callback,
+    .p_callback          = stm32_dma_callback,
     .p_context           = NULL,
     .activation_source   = ELC_EVENT_SCI0_RXI,
 };
@@ -289,7 +289,7 @@ const dmac_extended_cfg_t g_transfer_lidar_extend =
 #endif
     .ipl                 = (8),
     .channel             = 1,
-    .p_callback          = g_transfer_lidar_callback,
+    .p_callback          = lidar_dma_callback,
     .p_context           = NULL,
     .activation_source   = ELC_EVENT_SCI1_RXI,
 };
