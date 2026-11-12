@@ -62,8 +62,8 @@ static void Dev_TB_Disable(void)
 /*
  * 当前硬件资源：
  *
- * TIM1_CH1 -> Motor A PWM
- * TIM1_CH2 -> Motor B PWM
+ * TIM1_CH1 -> Motor B PWM
+ * TIM1_CH2 -> Motor A PWM
  *
  * TIM2 -> Motor A Encoder
  * TIM3 -> Motor B Encoder
@@ -73,7 +73,7 @@ void App_Move_Init(void)
     Dev_TB_Disable(); // 1. 失能驱动板，确保初始化过程中不会误动作
 
     // 注册左电机
-    left_motor = MG513_Register(&htim1, TIM_CHANNEL_1, &htim2, AIN1_GPIO_Port, AIN1_Pin, AIN2_GPIO_Port, AIN2_Pin);
+    left_motor = MG513_Register(&htim1, TIM_CHANNEL_2, &htim2, AIN1_GPIO_Port, AIN1_Pin, AIN2_GPIO_Port, AIN2_Pin);
     if (left_motor == NULL)
     {
         // 处理左电机注册失败的情况
@@ -81,7 +81,7 @@ void App_Move_Init(void)
     }
 
     // 注册右电机
-    right_motor = MG513_Register(&htim1, TIM_CHANNEL_2, &htim3, BIN1_GPIO_Port, BIN1_Pin, BIN2_GPIO_Port, BIN2_Pin);
+    right_motor = MG513_Register(&htim1, TIM_CHANNEL_1, &htim3, BIN1_GPIO_Port, BIN1_Pin, BIN2_GPIO_Port, BIN2_Pin);
     if (right_motor == NULL)
     {
         // 处理右电机注册失败的情况
