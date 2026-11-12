@@ -10,8 +10,8 @@
     "src"
   ],
   "companionSourcePaths": [
-    "ra/aws",
-    "ra/arm"
+    "ra/arm",
+    "ra/aws"
   ],
   "excludedFilePaths": [],
   "includePaths": [
