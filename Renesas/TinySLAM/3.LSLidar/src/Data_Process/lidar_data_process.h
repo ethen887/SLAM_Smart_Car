@@ -26,4 +26,8 @@ typedef struct{
 fsp_err_t lidar_data_process_init(void);
 void LiDar_Data_Process(void); // 处理队列中的数据
 
+// ★ 暴露给主循环建图使用的全局雷达点云
+extern OnePointDef g_lidar_points_frame[LIDAR_DATA_BLOCK_SIZE / LIDAR_N10_FRAME_SIZE][POINT_PER_PACK];
+extern bool g_new_lidar_ready;
+
 #endif

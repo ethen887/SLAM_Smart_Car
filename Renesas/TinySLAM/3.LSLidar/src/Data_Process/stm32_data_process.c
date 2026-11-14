@@ -4,11 +4,19 @@
 #include <string.h>
 #include "gpt.h"
 #include "hal_data.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 Stm32_Data stm32_data_queue[STM32_DATA_QUEUE_SIZE]; // 环形队列，用于保存触发某次DMA中断时的DMA已经搬运好的数据
 static uart_dmac_config_t stm32_uart_dmac_config; // UART 和 DMAC 的配置结构体
 static uint8_t stm32_dma_raw_data[STM32_DATA_BLOCK_SIZE]; // 用于 DMA 接收的原始数据缓冲区
- 
+
+// ★ 定义全局最新位姿实体
+uint32_t g_robot_time = 0;
+float g_robot_x = 0.0f;
+float g_robot_y = 0.0f;
+float g_robot_yaw = 0.0f;
+
 fsp_err_t stm32_data_process_init(void)
 {
     for(uint16_t i = 0; i < STM32_DATA_QUEUE_SIZE; i++) {
@@ -52,28 +60,44 @@ void Stm32_Data_Process(void) // 处理队列中的数据
     static uint32_t process_index = 0; // 记录是第几次处理队列数据
     while(!stm32_data_queue[process_index].flag) // 如果队列中有待处理的数据,那就一直处理,直到所有待处理数据全部处理完毕
     {
-        // 一下为处理一次DMA中断回调时接收到的数据的逻辑
-        uint32_t raw_data_left = STM32_DATA_BLOCK_SIZE; // 剩余未处理的原始数据长度
-        uint32_t stm32_data_index = 0; // 当前处理的帧索引
-        while(raw_data_left >= STM32_FRAME_SIZE) // 只要剩余数据长度大于等于一帧数据长度就继续处理
-        {
-            size_t offset = 0;
-            if(stm32_pose_find_frame(&stm32_data_queue[process_index].raw_data[STM32_DATA_BLOCK_SIZE - raw_data_left], 
-                                     raw_data_left, 
-                                     stm32_data_queue[process_index].data[stm32_data_index], 
-                                     &offset)) // 查找一帧有效数据
+        static uint8_t stm32_rx_buffer[STM32_DATA_BLOCK_SIZE]; // 保护性拷贝缓冲区
+        bool stm32_ready = false;
+        
+        taskENTER_CRITICAL();
+        memcpy(stm32_rx_buffer, stm32_data_queue[process_index].raw_data, STM32_DATA_BLOCK_SIZE);
+        stm32_data_queue[process_index].flag = true; // 标记数据已处理
+        process_index = (process_index + 1) % STM32_DATA_QUEUE_SIZE; // 更新处理索引
+        stm32_ready = true;
+        taskEXIT_CRITICAL();
+
+        if (stm32_ready) {
+            // 一下为处理一次DMA中断回调时接收到的数据的逻辑
+            uint32_t raw_data_left = STM32_DATA_BLOCK_SIZE; // 剩余未处理的原始数据长度
+            uint32_t offset = 0;
+            uint8_t frame_data[STM32_FRAME_SIZE];
+            Stm32PoseDef pose;
+            
+            while(raw_data_left >= STM32_FRAME_SIZE) // 只要剩余数据长度大于等于一帧数据长度就继续处理
             {
-                stm32_pose_parse_frame(stm32_data_queue[process_index].data[stm32_data_index], &stm32_data_queue[process_index].poses[stm32_data_index]); // 解析一帧数据
-                raw_data_left = raw_data_left - (STM32_FRAME_SIZE + offset); // 更新剩余未处理的原始数据长度
-                stm32_data_index++; // 更新当前处理的帧索引
-            }
-            else
-            {
-                break; // 没有找到有效数据帧，继续处理剩余数据
+                size_t found_offset = 0;
+                if(stm32_pose_find_frame(&stm32_rx_buffer[offset], raw_data_left, frame_data, &found_offset)) // 查找一帧有效数据
+                {
+                    if(stm32_pose_parse_frame(frame_data, &pose) != NULL) 
+                    {
+                        // 只要收到，就持续覆盖更新，保证用的是最新一帧坐标和时间戳
+                        g_robot_time = pose.timestamp; // 记录时间戳
+                        g_robot_x = pose.x;
+                        g_robot_y = pose.y;
+                        g_robot_yaw = pose.yaw;
+                    }
+                    offset += found_offset + STM32_FRAME_SIZE;
+                    raw_data_left = raw_data_left - (STM32_FRAME_SIZE + found_offset); // 更新剩余未处理的原始数据长度
+                }
+                else
+                {
+                    break; // 没有找到有效数据帧，继续处理剩余数据
+                }
             }
         }
-
-        stm32_data_queue[process_index].flag = true; // 标记数据已处理
-        process_index = (process_index + 1) % (STM32_DATA_QUEUE_SIZE); // 更新处理索引
     }
 }
