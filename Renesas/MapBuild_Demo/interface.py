@@ -20,6 +20,7 @@ class App:
         for label,cmd in [('障碍物编辑',lambda:self.setmode('障碍物')),('航点编辑',lambda:self.setmode('航点')),('选择/移动',lambda:self.setmode('移动')),('删除选中',self.delete),('清空障碍物',self.clear),('编辑选中',self.edit),('航点前移',lambda:self.reorder(-1)),('航点后移',lambda:self.reorder(1)),('保存',self.save),('加载',self.load),('参数',self.settings),('导出',self.export),('清空监控',self.clear_monitors)]:ttk.Button(bar,text=label,command=cmd).pack(side='left',padx=2)
         self.closed=tk.BooleanVar(value=self.s['closed']);ttk.Checkbutton(bar,text='闭环',variable=self.closed,command=self.set_closed).pack(side='left')
         controls=ttk.Frame(self.root);controls.pack(fill='x',padx=8)
+        ttk.Button(controls,text='真实数据建图',command=self.open_real).pack(side='left',padx=4)
         for label,cmd in [('开始/继续',self.start),('暂停',self.pause),('单步前进',self.forward),('单步后退',self.back),('重置',self.reset)]:ttk.Button(controls,text=label,command=cmd).pack(side='left',padx=2)
         ttk.Label(controls,text='播放速度').pack(side='left',padx=(12,2));self.speed=tk.StringVar(value='1');ttk.Combobox(controls,textvariable=self.speed,values=['0.5','1','2','4'],width=5,state='readonly').pack(side='left')
         self.modevar=tk.StringVar();ttk.Label(controls,textvariable=self.modevar).pack(side='right');self.setmode('障碍物')
@@ -40,6 +41,9 @@ class App:
         self.plotcanvas=FigureCanvasTkAgg(self.plotfig,side);self.plotcanvas.get_tk_widget().pack(fill='x',side='bottom');self.plotcanvas.mpl_connect('pick_event',self.pick)
         self.status=tk.StringVar();ttk.Label(self.root,textvariable=self.status,anchor='w').pack(fill='x',padx=10);self.draw();self.root.after(50,self.tick)
     def run(self):self.root.mainloop()
+    def open_real(self):
+        from real_mapping import RealMappingWindow
+        RealMappingWindow(self.root, self.lib)
     def setmode(self,m):self.mode=m;self.modevar.set('当前模式：'+m+'　｜　点击地图可添加监控点')
     def invalidate(self):
         if self.sim:self.sim.grid.close()

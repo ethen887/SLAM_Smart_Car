@@ -2,6 +2,8 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
+bool Serial_debug_send(const uint8_t *data, uint32_t len) { (void)data; (void)len; return true; }
 
 bool g_robot_pose_valid;
 float g_robot_x, g_robot_y, g_robot_yaw;

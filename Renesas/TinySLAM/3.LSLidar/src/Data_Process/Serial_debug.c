@@ -10,6 +10,7 @@ static uint8_t tx_ring_buffer[TX_BUFFER_SIZE];
 static volatile uint32_t tx_head = 0; // 写指针（业务层写）
 static volatile uint32_t tx_tail = 0; // 读指针（中断读）
 static volatile bool is_tx_active = false; // 是否正在发送
+static volatile uint32_t tx_active_len = 0;
 
 static uart_dtc_config_t debug_uart_dtc_cfg;
 
@@ -24,7 +25,8 @@ void g_uart2_callback(uart_callback_args_t *p_args)
     {
         // 此时这一段数据已经发送完毕。
         // 直接将 tail 指针更新到 head 指针的位置（因为 DTC 会把所有可用的数据一口气发完）
-        tx_tail = tx_head; 
+        tx_tail = (tx_tail + tx_active_len) % TX_BUFFER_SIZE;
+        tx_active_len = 0;
         is_tx_active = false;
         
         // 检查在发送期间，有没有新的数据被写进队列，有就接着发
@@ -57,7 +59,11 @@ static void Serial_Start_TX(void)
     }
 
     // 启动 DTC 发送
-    R_SCI_B_UART_Write(&g_uart2_ctrl, &tx_ring_buffer[tx_tail], current_tx_len);
+    tx_active_len = current_tx_len;
+    if (R_SCI_B_UART_Write(&g_uart2_ctrl, &tx_ring_buffer[tx_tail], current_tx_len) != FSP_SUCCESS) {
+        is_tx_active = false;
+        tx_active_len = 0;
+    }
 }
 
 /**
@@ -80,11 +86,18 @@ bool Serial_debug_send(const uint8_t *data, uint32_t len)
 {
     if (data == NULL || len == 0) return false;
 
+    taskENTER_CRITICAL();
+    uint32_t available = (tx_head >= tx_tail) ? tx_head - tx_tail : TX_BUFFER_SIZE - tx_tail + tx_head;
+    if (len > TX_BUFFER_SIZE - 1U - available) {
+        taskEXIT_CRITICAL();
+        return false;
+    }
     // 拷贝数据到环形队列
     for (uint32_t i = 0; i < len; i++) {
         uint32_t next_head = (tx_head + 1) % TX_BUFFER_SIZE;
         if (next_head == tx_tail) {
-            return false; // 队列满了，直接丢弃（防止卡死主循环）
+            taskEXIT_CRITICAL();
+            return false;
         }
         tx_ring_buffer[tx_head] = data[i];
         tx_head = next_head;
@@ -92,5 +105,6 @@ bool Serial_debug_send(const uint8_t *data, uint32_t len)
 
     // 尝试启动发送
     Serial_Start_TX();
+    taskEXIT_CRITICAL();
     return true;
 }

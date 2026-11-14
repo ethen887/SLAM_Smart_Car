@@ -9,6 +9,7 @@ extern Map g_build_map;
 extern Cell g_build_map_cells[10000];
 extern uint32_t g_build_map_frames;
 extern uint32_t g_build_map_skipped_no_pose;
+extern uint32_t g_build_map_stream_dropped;
 extern float g_lidar_offset_x_m, g_lidar_offset_y_m, g_lidar_yaw_rad;
 extern float g_lidar_angle_sign;
 

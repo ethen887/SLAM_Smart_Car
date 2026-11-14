@@ -1,5 +1,9 @@
 # 二维概率栅格建图实验平台
 
+**真实数据模式**：安装 `python -m pip install pyserial`，启动 `python run_demo.py`，点击“真实数据建图”，刷新并选择瑞萨调试串口（921600、8N1），关闭其他占用该串口的软件后点击连接。连接后重启瑞萨板以从第一帧开始同步；遥控器仍独立控制小车。红点和箭头表示雷达参考点位姿，灰色未知、白色空闲、黑色占据。状态栏显示序号间断和 CRC 错误；如果没有从首帧开始或中途丢帧，电脑地图与板端可能不同，需重启板子重新开始。按钮“清空电脑地图”不会清空板端地图。
+
+真实模式使用瑞萨 `4.LSLidar-stm32/src/Algorithm/map_core.c` 相同源码和板端已计算的雷达位姿、射线，数据帧以 `A5 5A` 开头，长度为小端 uint16，负载为帧号 uint32、x/y/heading float32、射线数量 uint8 和每条 angle/distance float32，末尾 CRC-16/MODBUS（覆盖长度和负载，小端）。数据以二进制发送，不再是旧的文本调试格式。时间对齐仍采用板端当前的最新位姿近似；实机尚需检查角度方向和安装偏移。
+
 在 Windows PowerShell 中进入本目录，运行 `python run_demo.py`。首次启动或 C 源码变化后会自动使用 GCC + Ninja 构建 DLL；需要 Python 的 NumPy、Matplotlib、Tkinter，及 PATH 中的 gcc、cmake、ninja。若 build 曾由其他生成器生成，请删除本目录的 build 再启动。
 
 - **障碍物编辑**：左图拖拽画矩形。选择“选择/移动”后拖动物体；“编辑选中”输入 x,y,长,宽（米）；也可删除或清空。外墙固定管理。

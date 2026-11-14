@@ -5,7 +5,9 @@ ROOT=Path(__file__).resolve().parent
 def build():
     builddir=ROOT/'build'; dll=builddir/('libmapcore.dll' if sys.platform=='win32' else 'libmapcore.so')
     sources=[ROOT/'CMakeLists.txt',ROOT/'core/map_core.c',ROOT/'core/map_core.h']
-    if dll.exists() and all(dll.stat().st_mtime>=p.stat().st_mtime for p in sources):return dll
+    real=builddir/('libmapreal.dll' if sys.platform=='win32' else 'libmapreal.so')
+    sources += [ROOT/'core/real_wrapper.c',ROOT.parent/'TinySLAM/4.LSLidar-stm32/src/Algorithm/map_core.c',ROOT.parent/'TinySLAM/4.LSLidar-stm32/src/Algorithm/map_core.h']
+    if dll.exists() and real.exists() and all(min(dll.stat().st_mtime,real.stat().st_mtime)>=p.stat().st_mtime for p in sources):return dll
     for tool in ('cmake','ninja','gcc'):
         if not shutil.which(tool):raise RuntimeError(f'找不到 {tool}，请安装并加入 PATH。')
     cache=builddir/'CMakeCache.txt'

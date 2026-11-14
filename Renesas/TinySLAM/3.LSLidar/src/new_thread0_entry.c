@@ -53,36 +53,6 @@ void new_thread0_entry(void *pvParameters)
         // ==========================================================
         if (g_new_lidar_ready) {
             g_new_lidar_ready = false;
-
-            static char tx_buf[4096];
-            uint32_t total_tx_len = 0;
-
-            int32_t ix = (int32_t)(g_robot_x * 100.0f);
-            int32_t iy = (int32_t)(g_robot_y * 100.0f);
-            int32_t iyaw = (int32_t)(g_robot_yaw * 100.0f);
-            int max_frames = (int)g_lidar_frame_count;
-
-            for (int i = 0; i < max_frames; i++) {
-                if (total_tx_len < sizeof(tx_buf) - 512) {
-                    total_tx_len += snprintf(&tx_buf[total_tx_len], sizeof(tx_buf) - total_tx_len, 
-                                             "%u,%d,%d,%d,", 
-                                             g_robot_time, ix, iy, iyaw);
-                    
-                    for (int p = 0; p < POINT_PER_PACK; p++) {
-                        total_tx_len += snprintf(&tx_buf[total_tx_len], sizeof(tx_buf) - total_tx_len, 
-                                                 "%d.%02d,%d,", 
-                                                 g_lidar_points_frame[i][p].angle / 100, 
-                                                 g_lidar_points_frame[i][p].angle % 100, 
-                                                 g_lidar_points_frame[i][p].distance);
-                    }
-                    
-                    tx_buf[total_tx_len++] = '\n';
-                }
-            }
-            
-            if (total_tx_len > 0) {
-                Serial_debug_send((const uint8_t *)tx_buf, total_tx_len);
-            }
         }
 
         vTaskDelay(pdMS_TO_TICKS(1)); 
