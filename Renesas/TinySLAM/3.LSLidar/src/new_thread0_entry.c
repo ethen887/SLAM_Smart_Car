@@ -6,6 +6,8 @@
 #include "stm32_data_process.h" 
 #include "link_stm32.h"
 #include "Serial_debug.h" 
+#include "app_buildmap.h"
+#include "gpt.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include <string.h>
@@ -17,6 +19,9 @@ void new_thread0_entry(void *pvParameters)
 
     // 1. 初始化外设
     Serial_debug_init();
+    gpt_init();
+    App_BuildMap_Init();
+    lidar_set_points_callback(App_BuildMap_OnPoints);
     
     // 初始化雷达
     fsp_err_t err = lidar_data_process_init();
@@ -55,7 +60,7 @@ void new_thread0_entry(void *pvParameters)
             int32_t ix = (int32_t)(g_robot_x * 100.0f);
             int32_t iy = (int32_t)(g_robot_y * 100.0f);
             int32_t iyaw = (int32_t)(g_robot_yaw * 100.0f);
-            int max_frames = (int)(LIDAR_DATA_BLOCK_SIZE / LIDAR_N10_FRAME_SIZE);
+            int max_frames = (int)g_lidar_frame_count;
 
             for (int i = 0; i < max_frames; i++) {
                 if (total_tx_len < sizeof(tx_buf) - 512) {

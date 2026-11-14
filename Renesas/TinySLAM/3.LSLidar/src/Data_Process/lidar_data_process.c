@@ -14,6 +14,13 @@ static uint8_t lidar_dma_raw_data[LIDAR_DATA_BLOCK_SIZE]; // 用于 DMA 接收�
 // ★ 定义全局雷达点云与标志位实体
 OnePointDef g_lidar_points_frame[LIDAR_DATA_BLOCK_SIZE / LIDAR_N10_FRAME_SIZE][POINT_PER_PACK];
 bool g_new_lidar_ready = false;
+uint16_t g_lidar_frame_count = 0;
+static lidar_points_callback_t points_callback = NULL;
+
+void lidar_set_points_callback(lidar_points_callback_t callback)
+{
+    points_callback = callback;
+}
 
 fsp_err_t lidar_data_process_init(void)
 {
@@ -84,11 +91,11 @@ void LiDar_Data_Process(void) // 处理队列中的数据
                 {
                     if(lidar_n10_parse_points(frame_data, local_points[frame_idx], POINT_PER_PACK) != NULL)
                     {
-                        // 解析一帧数据
+                        if (points_callback != NULL) points_callback(local_points[frame_idx], POINT_PER_PACK);
+                        frame_idx++;
                     }
                     offset += found_offset + LIDAR_N10_FRAME_SIZE;
                     raw_data_left = raw_data_left - (LIDAR_N10_FRAME_SIZE + found_offset); // 更新剩余未处理的原始数据长度
-                    frame_idx++; // 更新当前处理的帧索引
                 }
                 else
                 {
@@ -99,6 +106,7 @@ void LiDar_Data_Process(void) // 处理队列中的数据
             if (frame_idx > 0) {
                 // 将解析好的点云拷贝到全局数组中
                 memcpy(g_lidar_points_frame, local_points, sizeof(OnePointDef) * POINT_PER_PACK * frame_idx);
+                g_lidar_frame_count = (uint16_t)frame_idx;
                 g_new_lidar_ready = true;
             }
         }

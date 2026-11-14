@@ -13,6 +13,7 @@ static uint8_t stm32_dma_raw_data[STM32_DATA_BLOCK_SIZE]; // 用于 DMA 接收�
 
 // ★ 定义全局最新位姿实体
 uint32_t g_robot_time = 0;
+bool g_robot_pose_valid = false;
 float g_robot_x = 0.0f;
 float g_robot_y = 0.0f;
 float g_robot_yaw = 0.0f;
@@ -89,6 +90,7 @@ void Stm32_Data_Process(void) // 处理队列中的数据
                         g_robot_x = pose.x;
                         g_robot_y = pose.y;
                         g_robot_yaw = pose.yaw;
+                        g_robot_pose_valid = true;
                     }
                     offset += found_offset + STM32_FRAME_SIZE;
                     raw_data_left = raw_data_left - (STM32_FRAME_SIZE + found_offset); // 更新剩余未处理的原始数据长度
