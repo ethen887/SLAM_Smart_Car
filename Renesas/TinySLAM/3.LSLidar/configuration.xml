@@ -654,7 +654,7 @@
       <property id="module.driver.transfer.dest_addr_mode" value="module.driver.transfer.dest_addr_mode.addr_mode_incremented"/>
       <property id="module.driver.transfer.src_addr_mode" value="module.driver.transfer.src_addr_mode.addr_mode_fixed"/>
       <property id="module.driver.transfer.repeat_area" value="module.driver.transfer.repeat_area.repeat_area_destination"/>
-      <property id="module.driver.transfer.length" value="85"/>
+      <property id="module.driver.transfer.length" value="100"/>
       <property id="module.driver.transfer.num_blocks" value="0"/>
       <property id="module.driver.transfer.activation_event" value="_signal.event.sci0.rxi"/>
       <property id="module.driver.transfer.p_callback" value="stm32_dma_callback"/>

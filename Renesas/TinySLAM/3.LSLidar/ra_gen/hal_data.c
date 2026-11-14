@@ -15,7 +15,7 @@ transfer_info_t g_transfer_stm32_info =
     .p_dest                                  = (void *) NULL,
     .p_src                                   = (void const *) NULL,
     .num_blocks                              = 0,
-    .length                                  = 85,
+    .length                                  = 100,
 };
 const dmac_extended_cfg_t g_transfer_stm32_extend =
 {

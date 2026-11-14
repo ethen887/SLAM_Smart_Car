@@ -913,7 +913,7 @@ FSP Configuration
       Destination Address Mode: Incremented
       Source Address Mode: Fixed
       Repeat Area (Unused in Normal Mode): Destination
-      Number of Transfers: 85
+      Number of Transfers: 100
       Number of Blocks (Valid only in Repeat,Block or Repeat-Block Mode): 0
       Activation Source: SCI0 RXI (Receive data full)
       Callback: stm32_dma_callback
