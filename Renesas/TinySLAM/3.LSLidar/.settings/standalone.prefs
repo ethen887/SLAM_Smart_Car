@@ -1,4 +1,4 @@
-#Sat Oct 17 20:38:01 CST 2026
+#Sat Nov 14 16:19:54 CST 2026
 com.renesas.cdt.ddsc.content/com.renesas.cdt.ddsc.content.defaultlinkerscript=script/fsp.ld
 com.renesas.cdt.ddsc.contentgen.options/options/suppresswarningspaths=ra/arm,ra/aws
 com.renesas.cdt.ddsc.contentgen.options/options/toolchainversion=13.2.1
@@ -20,6 +20,12 @@ com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#BSP\#\#ra8p1\#\#linker\#\#\
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#BSP\#\#ra8p1\#\#linker\#\#\#\#6.5.0/libraries=
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#Common\#\#all\#\#fsp_common\#\#\#\#6.5.0/all=725333304,ra/fsp/inc/fsp_version.h|1163604195,ra/fsp/inc/api/fsp_common_api.h|1630225429,ra/fsp/inc/api/r_ioport_api.h|2226066273,ra/fsp/inc/api/bsp_api.h|3203221909,ra/fsp/src/bsp/cmsis/Device/RENESAS/Include/renesas.h|2943522861,ra/fsp/src/bsp/cmsis/Device/RENESAS/Include/system.h
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#Common\#\#all\#\#fsp_common\#\#\#\#6.5.0/libraries=
+com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_dmac\#\#\#\#6.5.0/all=3412164478,ra/fsp/inc/api/r_transfer_api.h|1501073843,ra/fsp/inc/instances/r_dmac.h|377261834,ra/fsp/src/r_dmac/r_dmac.c
+com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_dmac\#\#\#\#6.5.0/libraries=
+com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_dtc\#\#\#\#6.5.0/all=3412164478,ra/fsp/inc/api/r_transfer_api.h|899217706,ra/fsp/inc/instances/r_dtc.h|148736719,ra/fsp/src/r_dtc/r_dtc.c
+com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_dtc\#\#\#\#6.5.0/libraries=
+com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_gpt\#\#\#\#6.5.0/all=254185379,ra/fsp/inc/api/r_timer_api.h|3105831900,ra/fsp/inc/instances/r_gpt.h|827300049,ra/fsp/src/r_gpt/r_gpt.c
+com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_gpt\#\#\#\#6.5.0/libraries=
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_ioport\#\#\#\#6.5.0/all=1630225429,ra/fsp/inc/api/r_ioport_api.h|1676708329,ra/fsp/inc/instances/r_ioport.h|557850714,ra/fsp/src/r_ioport/r_ioport.c
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_ioport\#\#\#\#6.5.0/libraries=
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_sci_b_uart\#\#\#\#6.5.0/all=3412164478,ra/fsp/inc/api/r_transfer_api.h|1934728291,ra/fsp/inc/api/r_uart_api.h|3907528781,ra/fsp/inc/instances/r_sci_b_uart.h|1145704256,ra/fsp/src/r_sci_b_uart/r_sci_b_uart.c
@@ -32,3 +38,5 @@ com.renesas.cdt.ddsc.project.standalone.projectgenerationoptions/isCpp=false
 com.renesas.cdt.ddsc.settingseditor/com.renesas.cdt.ddsc.settingseditor.active_page=SWPConfigurator
 com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.uart_on_sci_b_uart.1437790290=false
 com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.uart_on_sci_b_uart.539075881=false
+com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.uart_on_sci_b_uart.754255129=false
+com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.uart_on_sci_b_uart.86135002=false
