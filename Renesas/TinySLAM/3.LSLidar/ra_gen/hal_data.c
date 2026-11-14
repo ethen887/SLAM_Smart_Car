@@ -1,5 +1,310 @@
 /* generated HAL source file - do not edit */
 #include "hal_data.h"
+
+
+dmac_instance_ctrl_t g_transfer_stm32_ctrl;
+transfer_info_t g_transfer_stm32_info =
+{
+    .transfer_settings_word_b.dest_addr_mode = TRANSFER_ADDR_MODE_INCREMENTED,
+    .transfer_settings_word_b.repeat_area    = TRANSFER_REPEAT_AREA_DESTINATION,
+    .transfer_settings_word_b.irq            = TRANSFER_IRQ_EACH,
+    .transfer_settings_word_b.chain_mode     = TRANSFER_CHAIN_MODE_DISABLED,
+    .transfer_settings_word_b.src_addr_mode  = TRANSFER_ADDR_MODE_FIXED,
+    .transfer_settings_word_b.size           = TRANSFER_SIZE_1_BYTE,
+    .transfer_settings_word_b.mode           = TRANSFER_MODE_REPEAT,
+    .p_dest                                  = (void *) NULL,
+    .p_src                                   = (void const *) NULL,
+    .num_blocks                              = 0,
+    .length                                  = 100,
+};
+const dmac_extended_cfg_t g_transfer_stm32_extend =
+{
+    .offset              = 1,
+    .src_buffer_size     = 1,
+#if defined(VECTOR_NUMBER_DMAC2_INT)
+    .irq                 = VECTOR_NUMBER_DMAC2_INT,
+#else
+    .irq                 = FSP_INVALID_VECTOR,
+#endif
+    .ipl                 = (7),
+    .channel             = 2,
+    .p_callback          = stm32_dma_callback,
+    .p_context           = NULL,
+    .activation_source   = ELC_EVENT_SCI0_RXI,
+};
+const transfer_cfg_t g_transfer_stm32_cfg =
+{
+    .p_info              = &g_transfer_stm32_info,
+    .p_extend            = &g_transfer_stm32_extend,
+};
+/* Instance structure to use this module. */
+const transfer_instance_t g_transfer_stm32 =
+{
+    .p_ctrl        = &g_transfer_stm32_ctrl,
+    .p_cfg         = &g_transfer_stm32_cfg,
+    .p_api         = &g_transfer_on_dmac
+};
+sci_b_uart_instance_ctrl_t     g_uart0_ctrl;
+
+            sci_b_baud_setting_t               g_uart0_baud_setting =
+            {
+                /* Baud rate calculated with 0.469% error. */ .baudrate_bits_b.abcse = 0, .baudrate_bits_b.abcs = 0, .baudrate_bits_b.bgdm = 1, .baudrate_bits_b.cks = 0, .baudrate_bits_b.brr = 53, .baudrate_bits_b.mddr = (uint8_t) 256, .baudrate_bits_b.brme = false
+            };
+
+            /** UART extended configuration for UARTonSCI HAL driver */
+            const sci_b_uart_extended_cfg_t g_uart0_cfg_extend =
+            {
+                .clock                = SCI_B_UART_CLOCK_INT,
+                .rx_edge_start          = SCI_B_UART_START_BIT_FALLING_EDGE,
+                .noise_cancel         = SCI_B_UART_NOISE_CANCELLATION_DISABLE,
+                .rx_fifo_trigger        = SCI_B_UART_RX_FIFO_TRIGGER_1,
+                .p_baud_setting         = &g_uart0_baud_setting,
+                .flow_control           = SCI_B_UART_FLOW_CONTROL_RTS,
+                #if 0xFF != 0xFF
+                .flow_control_pin       = BSP_IO_PORT_FF_PIN_0xFF,
+                #else
+                .flow_control_pin       = (bsp_io_port_pin_t) UINT16_MAX,
+                #endif
+                .rs485_setting          = {
+                    .enable = SCI_B_UART_RS485_DISABLE,
+                    .polarity = SCI_B_UART_RS485_DE_POLARITY_HIGH,
+                    .assertion_time = 1,
+                    .negation_time = 1,
+                },
+                .delay_cycles = 0,
+            };
+
+            /** UART interface configuration */
+            const uart_cfg_t g_uart0_cfg =
+            {
+                .channel             = 0,
+                .data_bits           = UART_DATA_BITS_8,
+                .parity              = UART_PARITY_OFF,
+                .stop_bits           = UART_STOP_BITS_1,
+                .p_callback          = NULL,
+                .p_context           = NULL,
+                .p_extend            = &g_uart0_cfg_extend,
+#define RA_NOT_DEFINED (1)
+#if (RA_NOT_DEFINED == RA_NOT_DEFINED)
+                .p_transfer_tx       = NULL,
+#else
+                .p_transfer_tx       = &RA_NOT_DEFINED,
+#endif
+#if (RA_NOT_DEFINED == RA_NOT_DEFINED)
+                .p_transfer_rx       = NULL,
+#else
+                .p_transfer_rx       = &RA_NOT_DEFINED,
+#endif
+#undef RA_NOT_DEFINED
+                .rxi_ipl             = (12),
+                .txi_ipl             = (12),
+                .tei_ipl             = (12),
+                .eri_ipl             = (15),
+#if defined(VECTOR_NUMBER_SCI0_RXI)
+                .rxi_irq             = VECTOR_NUMBER_SCI0_RXI,
+#else
+                .rxi_irq             = FSP_INVALID_VECTOR,
+#endif
+#if defined(VECTOR_NUMBER_SCI0_TXI)
+                .txi_irq             = VECTOR_NUMBER_SCI0_TXI,
+#else
+                .txi_irq             = FSP_INVALID_VECTOR,
+#endif
+#if defined(VECTOR_NUMBER_SCI0_TEI)
+                .tei_irq             = VECTOR_NUMBER_SCI0_TEI,
+#else
+                .tei_irq             = FSP_INVALID_VECTOR,
+#endif
+#if defined(VECTOR_NUMBER_SCI0_ERI)
+                .eri_irq             = VECTOR_NUMBER_SCI0_ERI,
+#else
+                .eri_irq             = FSP_INVALID_VECTOR,
+#endif
+            };
+
+/* Instance structure to use this module. */
+const uart_instance_t g_uart0 =
+{
+    .p_ctrl        = &g_uart0_ctrl,
+    .p_cfg         = &g_uart0_cfg,
+    .p_api         = &g_uart_on_sci_b
+};
+gpt_instance_ctrl_t g_timer8_ctrl;
+#if 0
+const gpt_extended_pwm_cfg_t g_timer8_pwm_extend =
+{
+    .trough_ipl             = (BSP_IRQ_DISABLED),
+#if defined(VECTOR_NUMBER_GPT8_COUNTER_UNDERFLOW)
+    .trough_irq             = VECTOR_NUMBER_GPT8_COUNTER_UNDERFLOW,
+#else
+    .trough_irq             = FSP_INVALID_VECTOR,
+#endif
+    .poeg_link              = GPT_POEG_LINK_POEG0,
+    .output_disable         = (gpt_output_disable_t) ( GPT_OUTPUT_DISABLE_NONE),
+    .adc_trigger            = (gpt_adc_trigger_t) ( GPT_ADC_TRIGGER_NONE),
+    .dead_time_count_up     = 0,
+    .dead_time_count_down   = 0,
+    .adc_a_compare_match    = 0,
+    .adc_b_compare_match    = 0,
+    .interrupt_skip_source  = GPT_INTERRUPT_SKIP_SOURCE_NONE,
+    .interrupt_skip_count   = GPT_INTERRUPT_SKIP_COUNT_0,
+    .interrupt_skip_adc     = GPT_INTERRUPT_SKIP_ADC_NONE,
+    .gtioca_disable_setting = GPT_GTIOC_DISABLE_PROHIBITED,
+    .gtiocb_disable_setting = GPT_GTIOC_DISABLE_PROHIBITED,
+};
+#endif
+const gpt_extended_cfg_t g_timer8_extend =
+{
+    .gtioca = { .output_enabled = false,
+                .stop_level     = GPT_PIN_LEVEL_LOW
+              },
+    .gtiocb = { .output_enabled = false,
+                .stop_level     = GPT_PIN_LEVEL_LOW
+              },
+    .start_source        = (gpt_source_t) ( GPT_SOURCE_NONE),
+    .stop_source         = (gpt_source_t) ( GPT_SOURCE_NONE),
+    .clear_source        = (gpt_source_t) ( GPT_SOURCE_NONE),
+    .count_up_source     = (gpt_source_t) ( GPT_SOURCE_NONE),
+    .count_down_source   = (gpt_source_t) ( GPT_SOURCE_NONE),
+    .capture_a_source    = (gpt_source_t) ( GPT_SOURCE_NONE),
+    .capture_b_source    = (gpt_source_t) ( GPT_SOURCE_NONE),
+    .capture_a_ipl       = (BSP_IRQ_DISABLED),
+    .capture_b_ipl       = (BSP_IRQ_DISABLED),
+    .compare_match_c_ipl = (BSP_IRQ_DISABLED),
+    .compare_match_d_ipl = (BSP_IRQ_DISABLED),
+    .compare_match_e_ipl = (BSP_IRQ_DISABLED),
+    .compare_match_f_ipl = (BSP_IRQ_DISABLED),
+#if defined(VECTOR_NUMBER_GPT8_CAPTURE_COMPARE_A)
+    .capture_a_irq         = VECTOR_NUMBER_GPT8_CAPTURE_COMPARE_A,
+#else
+    .capture_a_irq         = FSP_INVALID_VECTOR,
+#endif
+#if defined(VECTOR_NUMBER_GPT8_CAPTURE_COMPARE_B)
+    .capture_b_irq         = VECTOR_NUMBER_GPT8_CAPTURE_COMPARE_B,
+#else
+    .capture_b_irq         = FSP_INVALID_VECTOR,
+#endif
+#if defined(VECTOR_NUMBER_GPT8_COMPARE_C)
+    .compare_match_c_irq   = VECTOR_NUMBER_GPT8_COMPARE_C,
+#else
+    .compare_match_c_irq   = FSP_INVALID_VECTOR,
+#endif
+#if defined(VECTOR_NUMBER_GPT8_COMPARE_D)
+    .compare_match_d_irq   = VECTOR_NUMBER_GPT8_COMPARE_D,
+#else
+    .compare_match_d_irq   = FSP_INVALID_VECTOR,
+#endif
+#if defined(VECTOR_NUMBER_GPT8_COMPARE_E)
+    .compare_match_e_irq   = VECTOR_NUMBER_GPT8_COMPARE_E,
+#else
+    .compare_match_e_irq   = FSP_INVALID_VECTOR,
+#endif
+#if defined(VECTOR_NUMBER_GPT8_COMPARE_F)
+    .compare_match_f_irq   = VECTOR_NUMBER_GPT8_COMPARE_F,
+#else
+    .compare_match_f_irq   = FSP_INVALID_VECTOR,
+#endif
+     .compare_match_value = { (uint32_t)0x0, /* CMP_A */(uint32_t)0x0, /* CMP_B */(uint32_t)0x0, /* CMP_C */(uint32_t)0x0, /* CMP_D */(uint32_t)0x0, /* CMP_E */(uint32_t)0x0, /* CMP_F */ }, .compare_match_status = ((0U << 5U) | (0U << 4U) | (0U << 3U) | (0U << 2U) | (0U << 1U) | 0U),
+    .capture_filter_gtioca = GPT_CAPTURE_FILTER_NONE,
+    .capture_filter_gtiocb = GPT_CAPTURE_FILTER_NONE,
+#if 0
+    .p_pwm_cfg             = &g_timer8_pwm_extend,
+#else
+    .p_pwm_cfg             = NULL,
+#endif
+#if 0
+    .gtior_setting.gtior_b.gtioa  = (0U << 4U) | (0U << 2U) | (0U << 0U),
+    .gtior_setting.gtior_b.oadflt = (uint32_t) GPT_PIN_LEVEL_LOW,
+    .gtior_setting.gtior_b.oahld  = 0U,
+    .gtior_setting.gtior_b.oae    = (uint32_t) false,
+    .gtior_setting.gtior_b.oadf   = (uint32_t) GPT_GTIOC_DISABLE_PROHIBITED,
+    .gtior_setting.gtior_b.nfaen  = ((uint32_t) GPT_CAPTURE_FILTER_NONE & 1U),
+    .gtior_setting.gtior_b.nfcsa  = ((uint32_t) GPT_CAPTURE_FILTER_NONE >> 1U),
+    .gtior_setting.gtior_b.gtiob  = (0U << 4U) | (0U << 2U) | (0U << 0U),
+    .gtior_setting.gtior_b.obdflt = (uint32_t) GPT_PIN_LEVEL_LOW,
+    .gtior_setting.gtior_b.obhld  = 0U,
+    .gtior_setting.gtior_b.obe    = (uint32_t) false,
+    .gtior_setting.gtior_b.obdf   = (uint32_t) GPT_GTIOC_DISABLE_PROHIBITED,
+    .gtior_setting.gtior_b.nfben  = ((uint32_t) GPT_CAPTURE_FILTER_NONE & 1U),
+    .gtior_setting.gtior_b.nfcsb  = ((uint32_t) GPT_CAPTURE_FILTER_NONE >> 1U),
+#else
+    .gtior_setting.gtior = 0U,
+#endif
+
+    .gtioca_polarity = GPT_GTIOC_POLARITY_NORMAL,
+    .gtiocb_polarity = GPT_GTIOC_POLARITY_NORMAL,
+};
+
+const timer_cfg_t g_timer8_cfg =
+{
+    .mode                = TIMER_MODE_PERIODIC,
+    /* Actual period: 4398.04651008 seconds. Actual duty: 49.99999998835847%. */ .period_counts = (uint32_t) 0xffffffff, .duty_cycle_counts = 0x7fffffff, .source_div = (timer_source_div_t)8,
+    .channel             = 8,
+    .p_callback          = NULL,
+    /** If NULL then do not add & */
+#if defined(NULL)
+    .p_context           = NULL,
+#else
+    .p_context           = (void *) &NULL,
+#endif
+    .p_extend            = &g_timer8_extend,
+    .cycle_end_ipl       = (BSP_IRQ_DISABLED),
+#if defined(VECTOR_NUMBER_GPT8_COUNTER_OVERFLOW)
+    .cycle_end_irq       = VECTOR_NUMBER_GPT8_COUNTER_OVERFLOW,
+#else
+    .cycle_end_irq       = FSP_INVALID_VECTOR,
+#endif
+};
+/* Instance structure to use this module. */
+const timer_instance_t g_timer8 =
+{
+    .p_ctrl        = &g_timer8_ctrl,
+    .p_cfg         = &g_timer8_cfg,
+    .p_api         = &g_timer_on_gpt
+};
+
+dmac_instance_ctrl_t g_transfer_lidar_ctrl;
+transfer_info_t g_transfer_lidar_info =
+{
+    .transfer_settings_word_b.dest_addr_mode = TRANSFER_ADDR_MODE_INCREMENTED,
+    .transfer_settings_word_b.repeat_area    = TRANSFER_REPEAT_AREA_DESTINATION,
+    .transfer_settings_word_b.irq            = TRANSFER_IRQ_EACH,
+    .transfer_settings_word_b.chain_mode     = TRANSFER_CHAIN_MODE_DISABLED,
+    .transfer_settings_word_b.src_addr_mode  = TRANSFER_ADDR_MODE_FIXED,
+    .transfer_settings_word_b.size           = TRANSFER_SIZE_1_BYTE,
+    .transfer_settings_word_b.mode           = TRANSFER_MODE_REPEAT,
+    .p_dest                                  = (void *) NULL,
+    .p_src                                   = (void const *) NULL,
+    .num_blocks                              = 0,
+    .length                                  = 580,
+};
+const dmac_extended_cfg_t g_transfer_lidar_extend =
+{
+    .offset              = 1,
+    .src_buffer_size     = 1,
+#if defined(VECTOR_NUMBER_DMAC1_INT)
+    .irq                 = VECTOR_NUMBER_DMAC1_INT,
+#else
+    .irq                 = FSP_INVALID_VECTOR,
+#endif
+    .ipl                 = (8),
+    .channel             = 1,
+    .p_callback          = lidar_dma_callback,
+    .p_context           = NULL,
+    .activation_source   = ELC_EVENT_SCI1_RXI,
+};
+const transfer_cfg_t g_transfer_lidar_cfg =
+{
+    .p_info              = &g_transfer_lidar_info,
+    .p_extend            = &g_transfer_lidar_extend,
+};
+/* Instance structure to use this module. */
+const transfer_instance_t g_transfer_lidar =
+{
+    .p_ctrl        = &g_transfer_lidar_ctrl,
+    .p_cfg         = &g_transfer_lidar_cfg,
+    .p_api         = &g_transfer_on_dmac
+};
 sci_b_uart_instance_ctrl_t     g_uart1_ctrl;
 
             sci_b_baud_setting_t               g_uart1_baud_setting =
@@ -13,7 +318,7 @@ sci_b_uart_instance_ctrl_t     g_uart1_ctrl;
                 .clock                = SCI_B_UART_CLOCK_INT,
                 .rx_edge_start          = SCI_B_UART_START_BIT_FALLING_EDGE,
                 .noise_cancel         = SCI_B_UART_NOISE_CANCELLATION_DISABLE,
-                .rx_fifo_trigger        = SCI_B_UART_RX_FIFO_TRIGGER_MAX,
+                .rx_fifo_trigger        = SCI_B_UART_RX_FIFO_TRIGGER_1,
                 .p_baud_setting         = &g_uart1_baud_setting,
                 .flow_control           = SCI_B_UART_FLOW_CONTROL_RTS,
                 #if 0xFF != 0xFF
@@ -37,7 +342,7 @@ sci_b_uart_instance_ctrl_t     g_uart1_ctrl;
                 .data_bits           = UART_DATA_BITS_8,
                 .parity              = UART_PARITY_OFF,
                 .stop_bits           = UART_STOP_BITS_1,
-                .p_callback          = g_uart1_callback,
+                .p_callback          = NULL,
                 .p_context           = NULL,
                 .p_extend            = &g_uart1_cfg_extend,
 #define RA_NOT_DEFINED (1)
@@ -55,7 +360,7 @@ sci_b_uart_instance_ctrl_t     g_uart1_ctrl;
                 .rxi_ipl             = (12),
                 .txi_ipl             = (12),
                 .tei_ipl             = (12),
-                .eri_ipl             = (12),
+                .eri_ipl             = (15),
 #if defined(VECTOR_NUMBER_SCI1_RXI)
                 .rxi_irq             = VECTOR_NUMBER_SCI1_RXI,
 #else
@@ -84,6 +389,97 @@ const uart_instance_t g_uart1 =
     .p_ctrl        = &g_uart1_ctrl,
     .p_cfg         = &g_uart1_cfg,
     .p_api         = &g_uart_on_sci_b
+};
+dtc_instance_ctrl_t g_transfer2_ctrl;
+
+#if (BSP_CFG_DCACHE_ENABLED) && (1 == 1)
+const transfer_info_t g_transfer2_user_config_info =
+{
+    .transfer_settings_word_b.dest_addr_mode = TRANSFER_ADDR_MODE_FIXED,
+    .transfer_settings_word_b.repeat_area    = TRANSFER_REPEAT_AREA_SOURCE,
+    .transfer_settings_word_b.irq            = TRANSFER_IRQ_END,
+    .transfer_settings_word_b.chain_mode     = TRANSFER_CHAIN_MODE_DISABLED,
+    .transfer_settings_word_b.src_addr_mode  = TRANSFER_ADDR_MODE_INCREMENTED,
+    .transfer_settings_word_b.size           = TRANSFER_SIZE_1_BYTE,
+    .transfer_settings_word_b.mode           = TRANSFER_MODE_NORMAL,
+    .p_dest                                  = (void *) NULL,
+    .p_src                                   = (void const *) NULL,
+    .num_blocks                              = (uint16_t) 0,
+    .length                                  = (uint16_t) 0,
+};
+#endif
+
+#if BSP_CFG_DCACHE_ENABLED
+    #if (1 > 0)
+    transfer_info_t g_transfer2_info_fsp_nocache[1] DTC_TRANSFER_INFO_ALIGNMENT;
+    #else
+    /* User must call api::reconfigure before enable DTC transfer. */
+    #endif
+#else
+    #if (1 == 1)
+    transfer_info_t g_transfer2_info DTC_TRANSFER_INFO_ALIGNMENT =
+    {
+        .transfer_settings_word_b.dest_addr_mode = TRANSFER_ADDR_MODE_FIXED,
+        .transfer_settings_word_b.repeat_area    = TRANSFER_REPEAT_AREA_SOURCE,
+        .transfer_settings_word_b.irq            = TRANSFER_IRQ_END,
+        .transfer_settings_word_b.chain_mode     = TRANSFER_CHAIN_MODE_DISABLED,
+        .transfer_settings_word_b.src_addr_mode  = TRANSFER_ADDR_MODE_INCREMENTED,
+        .transfer_settings_word_b.size           = TRANSFER_SIZE_1_BYTE,
+        .transfer_settings_word_b.mode           = TRANSFER_MODE_NORMAL,
+        .p_dest                                  = (void *) NULL,
+        .p_src                                   = (void const *) NULL,
+        .num_blocks                              = (uint16_t) 0,
+        .length                                  = (uint16_t) 0,
+    };
+    #elif (1 > 1)
+    /* User is responsible to initialize the array. */
+    transfer_info_t g_transfer2_info[1] DTC_TRANSFER_INFO_ALIGNMENT;
+    #else
+    /* User must call api::reconfigure before enable DTC transfer. */
+    #endif
+#endif
+
+const dtc_extended_cfg_t g_transfer2_cfg_extend =
+{
+    .activation_source   = VECTOR_NUMBER_SCI2_TXI,
+
+#if BSP_CFG_DCACHE_ENABLED
+    #if (1 == 1)
+        .p_user_config_info =  &g_transfer2_user_config_info,
+    #else
+        .p_user_config_info = NULL,
+    #endif
+#else
+    /* p_user_config_info not present. */
+#endif
+};
+
+const transfer_cfg_t g_transfer2_cfg =
+{
+#if BSP_CFG_DCACHE_ENABLED
+    #if (1 > 0)
+        .p_info              = g_transfer2_info_fsp_nocache,
+    #else
+        .p_info = NULL,
+    #endif
+#else
+    #if (1 == 1)
+        .p_info              = &g_transfer2_info,
+    #elif (1 > 1)
+        .p_info              = g_transfer2_info,
+    #else
+        .p_info = NULL,
+    #endif
+#endif
+    .p_extend            = &g_transfer2_cfg_extend,
+};
+
+/* Instance structure to use this module. */
+const transfer_instance_t g_transfer2 =
+{
+    .p_ctrl        = &g_transfer2_ctrl,
+    .p_cfg         = &g_transfer2_cfg,
+    .p_api         = &g_transfer_on_dtc
 };
 sci_b_uart_instance_ctrl_t     g_uart2_ctrl;
 
@@ -126,10 +522,10 @@ sci_b_uart_instance_ctrl_t     g_uart2_ctrl;
                 .p_context           = NULL,
                 .p_extend            = &g_uart2_cfg_extend,
 #define RA_NOT_DEFINED (1)
-#if (RA_NOT_DEFINED == RA_NOT_DEFINED)
+#if (RA_NOT_DEFINED == g_transfer2)
                 .p_transfer_tx       = NULL,
 #else
-                .p_transfer_tx       = &RA_NOT_DEFINED,
+                .p_transfer_tx       = &g_transfer2,
 #endif
 #if (RA_NOT_DEFINED == RA_NOT_DEFINED)
                 .p_transfer_rx       = NULL,

@@ -58,3 +58,10 @@ file(GLOB_RECURSE USER_SOURCES CONFIGURE_DEPENDS
 )
 
 target_sources(${PROJECT_NAME}.elf PRIVATE ${USER_SOURCES})
+# 项目头文件目录，供编译器和 C/C++ 索引使用。
+target_include_directories(${PROJECT_NAME}.elf PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Debug"             # ★ 新增这一行，包含 src 根目录
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Community"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Device"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Data_Process"
+)

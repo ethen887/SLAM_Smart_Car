@@ -4,9 +4,9 @@
 #if 1
                 static StaticTask_t new_thread0_memory;
                 #if defined(__ARMCC_VERSION)           /* AC6 compiler */
-                static uint8_t new_thread0_stack[2048] BSP_PLACE_IN_SECTION(BSP_UNINIT_SECTION_PREFIX ".stack.thread") BSP_ALIGN_VARIABLE(BSP_STACK_ALIGNMENT);
+                static uint8_t new_thread0_stack[8192] BSP_PLACE_IN_SECTION(BSP_UNINIT_SECTION_PREFIX ".stack.thread") BSP_ALIGN_VARIABLE(BSP_STACK_ALIGNMENT);
                 #else
-                static uint8_t new_thread0_stack[2048] BSP_PLACE_IN_SECTION(BSP_UNINIT_SECTION_PREFIX ".stack.new_thread0") BSP_ALIGN_VARIABLE(BSP_STACK_ALIGNMENT);
+                static uint8_t new_thread0_stack[8192] BSP_PLACE_IN_SECTION(BSP_UNINIT_SECTION_PREFIX ".stack.new_thread0") BSP_ALIGN_VARIABLE(BSP_STACK_ALIGNMENT);
                 #endif
                 #endif
                 TaskHandle_t new_thread0;
@@ -36,7 +36,7 @@ extern uint32_t g_fsp_common_thread_count;
                     #endif
                         new_thread0_func,
                         (const char *)"New Thread",
-                        2048/4, // In words, not bytes
+                        8192/4, // In words, not bytes
                         (void *) &new_thread0_parameters, //pvParameters
                         1,
                         #if 1

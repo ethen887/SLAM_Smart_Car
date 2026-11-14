@@ -6,13 +6,14 @@
         #endif
                 /* Number of interrupts allocated */
         #ifndef VECTOR_DATA_IRQ_COUNT
-        #define VECTOR_DATA_IRQ_COUNT    (8)
+        #define VECTOR_DATA_IRQ_COUNT    (14)
         #endif
         /* ISR prototypes */
         void sci_b_uart_rxi_isr(void);
         void sci_b_uart_txi_isr(void);
         void sci_b_uart_tei_isr(void);
         void sci_b_uart_eri_isr(void);
+        void dmac_int_isr(void);
 
         /* Vector table allocations */
         #define VECTOR_NUMBER_SCI2_RXI ((IRQn_Type) 0) /* SCI2 RXI (Receive data full) */
@@ -31,8 +32,20 @@
         #define SCI1_TEI_IRQn          ((IRQn_Type) 6) /* SCI1 TEI (Transmit end) */
         #define VECTOR_NUMBER_SCI1_ERI ((IRQn_Type) 7) /* SCI1 ERI (Receive error) */
         #define SCI1_ERI_IRQn          ((IRQn_Type) 7) /* SCI1 ERI (Receive error) */
+        #define VECTOR_NUMBER_DMAC1_INT ((IRQn_Type) 8) /* DMAC1 INT (DMAC1 transfer end) */
+        #define DMAC1_INT_IRQn          ((IRQn_Type) 8) /* DMAC1 INT (DMAC1 transfer end) */
+        #define VECTOR_NUMBER_SCI0_RXI ((IRQn_Type) 9) /* SCI0 RXI (Receive data full) */
+        #define SCI0_RXI_IRQn          ((IRQn_Type) 9) /* SCI0 RXI (Receive data full) */
+        #define VECTOR_NUMBER_SCI0_TXI ((IRQn_Type) 10) /* SCI0 TXI (Transmit data empty) */
+        #define SCI0_TXI_IRQn          ((IRQn_Type) 10) /* SCI0 TXI (Transmit data empty) */
+        #define VECTOR_NUMBER_SCI0_TEI ((IRQn_Type) 11) /* SCI0 TEI (Transmit end) */
+        #define SCI0_TEI_IRQn          ((IRQn_Type) 11) /* SCI0 TEI (Transmit end) */
+        #define VECTOR_NUMBER_SCI0_ERI ((IRQn_Type) 12) /* SCI0 ERI (Receive error) */
+        #define SCI0_ERI_IRQn          ((IRQn_Type) 12) /* SCI0 ERI (Receive error) */
+        #define VECTOR_NUMBER_DMAC2_INT ((IRQn_Type) 13) /* DMAC2 INT (DMAC2 transfer end) */
+        #define DMAC2_INT_IRQn          ((IRQn_Type) 13) /* DMAC2 INT (DMAC2 transfer end) */
         /* The number of entries required for the ICU vector table. */
-        #define BSP_ICU_VECTOR_NUM_ENTRIES (8)
+        #define BSP_ICU_VECTOR_NUM_ENTRIES (14)
 
         #ifdef __cplusplus
         }
