@@ -61,7 +61,7 @@ static const stmdev_ctx_t lsm6dsr_ctx = {
     .write_reg = Lsm6dsr_WriteReg,
     .read_reg = Lsm6dsr_ReadReg,
     .mdelay = HAL_Delay,
-    .handle = &hi2c1
+    .handle = &hi2c2
 };
 
 /** @brief 读取工厂频率修正值并估算实际 ODR，不写入工厂修正寄存器。 */

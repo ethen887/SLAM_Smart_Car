@@ -27,6 +27,8 @@ add_executable(${CMAKE_PROJECT_NAME})
 
 # STM32CubeMX generated code
 add_subdirectory(cmake/stm32cubemx)
+# Keep the HAL within the F103C8's 64 KiB flash, including in Debug builds.
+target_compile_options(STM32_Drivers PRIVATE -Os)
 
 # User modules
 add_subdirectory(Algorithm)

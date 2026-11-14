@@ -7,6 +7,7 @@
 #include "app_imu_log.h"
 #include "app_attitude.h"
 #include "app_odometry.h"
+#include "app_host_comm.h"
 #include "app_test_run.h"
 #include "tim.h"
 #include "FreeRTOS.h"
@@ -83,6 +84,7 @@ void StartMoveTask(void *argument)
 
         // 计算两次采样的实际时间间隔
         uint32_t now = osKernelGetTickCount();
+        uint32_t sample_ms = HAL_GetTick();
         uint32_t elapsed = now - last_tick;
         if (elapsed == 0U) continue;
 
@@ -112,7 +114,10 @@ void StartMoveTask(void *argument)
 
         // 同一周期轮增量和可用的 IMU 航向增量共同积分。
         if (left_motor != NULL && right_motor != NULL) {
-            App_Odometry_UpdateImu(left_motor->encoder_count, right_motor->encoder_count, dt, imu_valid, yaw_delta);
+            if (App_Odometry_UpdateImu(left_motor->encoder_count, right_motor->encoder_count, dt, imu_valid, yaw_delta)) {
+                OdometryData_t sample = App_Odometry_GetData();
+                App_HostComm_PushOdometry(sample_ms, &sample);
+            }
         }
 
         // 获取PS2通信状态及最近一次成功接收时间
