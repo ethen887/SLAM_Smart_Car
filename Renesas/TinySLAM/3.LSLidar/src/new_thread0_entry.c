@@ -61,6 +61,7 @@ void new_thread0_entry(void *pvParameters)
         Stm32_Data_Process(stm32_snapshot);
         LiDar_Data_Process(lidar_snapshot);
         Serial_debug_poll();
+        App_BuildMap_PublishSnapshot();
 
         // ==========================================================
         // 2. 融合发数据

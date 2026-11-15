@@ -4,6 +4,7 @@
 #include "app_buildmap.h"
 #include "stm32_data_process.h"
 #include "frame_tail.h"
+#include "pose_timing.h"
 #include <string.h>
 #include "gpt.h"
 #include "hal_data.h"
@@ -18,6 +19,8 @@ static uint32_t lidar_read;
 volatile uint32_t g_lidar_blocks_overwritten;
 static uint8_t lidar_tail[LIDAR_N10_FRAME_SIZE - 1U];
 static size_t lidar_tail_len;
+/* Must match UART1 in configuration.xml (8N1). */
+#define LIDAR_UART_BAUD 230400U
 
 uint32_t lidar_data_snapshot(void) { return lidar_written; }
 
@@ -109,8 +112,12 @@ void LiDar_Data_Process(uint32_t snapshot)
                     if(lidar_n10_parse_points(frame_data, local_points[frame_idx], POINT_PER_PACK) != NULL)
                     {
                         Stm32PoseDef pose;
+                        /* Mid-frame reception time gives each packet its own pose.
+                         * The physical sampling/transport delay is still unknown. */
+                        size_t bytes_after_midpoint = raw_data_left - found_offset - LIDAR_N10_FRAME_SIZE / 2U;
+                        uint64_t frame_time = stream_time_before_end(block_time, bytes_after_midpoint, LIDAR_UART_BAUD);
                         App_BuildMap_OnPoints(local_points[frame_idx], POINT_PER_PACK,
-                                              stm32_pose_at(block_time, &pose) ? &pose : NULL);
+                                              stm32_pose_at(frame_time, &pose) ? &pose : NULL);
                         frame_idx++;
                     }
                     offset += found_offset + LIDAR_N10_FRAME_SIZE;

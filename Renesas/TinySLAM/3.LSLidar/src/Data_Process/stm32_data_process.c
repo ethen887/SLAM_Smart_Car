@@ -2,6 +2,7 @@
 #include "stm32_data_process.h"
 #include "link_stm32.h"
 #include "frame_tail.h"
+#include "pose_timing.h"
 #include <string.h>
 #include "gpt.h"
 #include "hal_data.h"
@@ -16,25 +17,18 @@ static uint32_t stm32_read;
 volatile uint32_t g_stm32_blocks_overwritten;
 #define POSE_HISTORY_SIZE 128U
 #define POSE_MAX_AGE_US 500000ULL
-typedef struct { uint64_t receive_us; Stm32PoseDef pose; } TimedPose;
+/* Must match UART0 in configuration.xml (8N1). */
+#define STM32_UART_BAUD 115200U
 static TimedPose pose_history[POSE_HISTORY_SIZE];
 static uint32_t pose_count;
+static PoseClock pose_clock;
 static uint8_t stm32_tail[STM32_FRAME_SIZE - 1U];
 static size_t stm32_tail_len;
 
 bool stm32_pose_at(uint64_t receive_us, Stm32PoseDef *pose)
 {
     if (pose == NULL || !g_timestamp_ready) return false;
-    uint32_t count = pose_count < POSE_HISTORY_SIZE ? pose_count : POSE_HISTORY_SIZE;
-    for (uint32_t i = 0; i < count; i++) {
-        const TimedPose *entry = &pose_history[(pose_count - 1U - i) % POSE_HISTORY_SIZE];
-        if (entry->receive_us <= receive_us) {
-            if (receive_us - entry->receive_us > POSE_MAX_AGE_US) return false;
-            *pose = entry->pose;
-            return true;
-        }
-    }
-    return false;
+    return pose_history_at(pose_history, POSE_HISTORY_SIZE, pose_count, receive_us, POSE_MAX_AGE_US, pose);
 }
 
 uint32_t stm32_data_snapshot(void) { return stm32_written; }
@@ -133,8 +127,23 @@ void Stm32_Data_Process(uint32_t snapshot)
                         g_robot_y = pose.y;
                         g_robot_yaw = pose.yaw;
                         g_robot_pose_valid = true;
+                        /* Estimate when the sender began this frame, since its pose
+                         * was sampled before transmission. Inter-byte gaps are unknown. */
+                        size_t bytes_after_start = raw_data_left - found_offset;
+                        uint64_t arrival = stream_time_before_end(block_time, bytes_after_start, STM32_UART_BAUD);
+                        uint64_t shift;
+                        bool clock_reset;
+                        uint64_t sample_time = pose_clock_observe(&pose_clock, pose.timestamp, arrival, &shift, &clock_reset);
+                        if (clock_reset) pose_count = 0;
+                        if (shift) {
+                            uint32_t count = pose_count < POSE_HISTORY_SIZE ? pose_count : POSE_HISTORY_SIZE;
+                            for (uint32_t i = 0; i < count; ++i) {
+                                TimedPose *old = &pose_history[(pose_count - 1U - i) % POSE_HISTORY_SIZE];
+                                old->receive_us = old->receive_us > shift ? old->receive_us - shift : 0U;
+                            }
+                        }
                         TimedPose *entry = &pose_history[pose_count % POSE_HISTORY_SIZE];
-                        entry->receive_us = block_time;
+                        entry->receive_us = sample_time;
                         entry->pose = pose;
                         pose_count++;
                     }

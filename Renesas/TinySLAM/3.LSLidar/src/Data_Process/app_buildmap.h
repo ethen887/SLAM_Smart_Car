@@ -8,6 +8,7 @@
 /** 地图及统计量保留在 RAM 中，可通过调试器观察。 */
 extern Map g_build_map;
 extern Cell g_build_map_cells[10000];
+extern uint8_t g_build_map_obstacles[10000]; /* 0=other, 1=obstacle, 2=wall candidate. */
 extern uint32_t g_build_map_frames;
 extern uint32_t g_build_map_skipped_no_pose;
 extern uint32_t g_build_map_stream_dropped;
@@ -16,6 +17,7 @@ extern float g_lidar_angle_sign;
 
 /** @brief 初始化真实数据建图模块。 */
 void App_BuildMap_Init(void);
+void App_BuildMap_PublishSnapshot(void);
 
 /**
  * @brief 接收一包雷达点，并使用近似匹配的里程计更新地图。

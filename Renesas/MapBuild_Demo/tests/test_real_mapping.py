@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 import numpy as np
 from matplotlib.figure import Figure
-from real_mapping import RealMappingWindow, StreamParser, crc16, map_rays
+from real_mapping import RealMappingWindow, StreamParser, crc16, map_rays, relative_pose, real_map_settings, obstacle_boxes
 from simulation import Grid, defaults
 from run_demo import build
 
@@ -17,6 +17,17 @@ def packet(seq=1):
 
 
 class RealStreamTest(unittest.TestCase):
+    def test_real_map_covers_six_meters(self):
+        cfg = real_map_settings()
+        self.assertAlmostEqual(cfg['width'] * cfg['resolution'], 6.0)
+        self.assertAlmostEqual(cfg['height'] * cfg['resolution'], 6.0)
+        self.assertEqual((cfg['origin_x'], cfg['origin_y']), (-3.0, -3.0))
+
+    def test_first_pose_centers_map_without_rotating_frame(self):
+        origin = (3.0, -5.0)
+        self.assertEqual(relative_pose((3.0, -5.0, 1.2), origin), (0.0, 0.0, 1.2))
+        self.assertEqual(relative_pose((4.0, -3.0, -2.0), origin), (1.0, 2.0, -2.0))
+
     def test_clockwise_lidar_wall_stays_fixed_during_turn(self):
         lib = build().with_name('libmapreal.dll' if __import__('sys').platform == 'win32' else 'libmapreal.so')
         grid = Grid(lib, defaults()['map'])
@@ -32,22 +43,42 @@ class RealStreamTest(unittest.TestCase):
             grid.close()
 
     def test_fixed_map_view_and_rotating_heading(self):
-        grid = np.zeros((2, 2), dtype=[('seen', 'u1'), ('log', 'f4')])
-        grid['seen'][0, 1] = 1
-        grid['log'][0, 1] = 2
+        cells = np.zeros((100, 100), dtype=np.uint8)
+        cells[0, 1] = 2
         window = SimpleNamespace(
-            grid=SimpleNamespace(snapshot=lambda: grid,
-                                 cfg=SimpleNamespace(origin_x=-1, origin_y=-1,
-                                                     width=2, height=2, resolution=1)),
+            cells=cells,
             ax=Figure().add_subplot(111), canvas=SimpleNamespace(draw_idle=Mock()))
         RealMappingWindow.draw(window, (0, 0, 0))
         image = np.array(window.ax.images[0].get_array())
-        first_arrow = window.ax.patches[0].get_path().vertices.copy()
+        self.assertEqual(window.ax.images[0].get_cmap().name, 'gray')
+        self.assertLess(image[0, 1], image[0, 0])  # Occupied has lower brightness.
+        self.assertLess(window.ax.images[0].cmap(image[0, 1])[0],
+                        window.ax.images[0].cmap(image[0, 0])[0])  # And is darker.
+        first_arrow = window.ax.patches[-1].get_path().vertices.copy()
         RealMappingWindow.draw(window, (0, 0, math.pi / 2))
         np.testing.assert_array_equal(image, window.ax.images[0].get_array())
-        self.assertEqual(window.ax.get_xlim(), (-1, 1))
-        self.assertEqual(window.ax.get_ylim(), (-1, 1))
-        self.assertFalse(np.allclose(first_arrow, window.ax.patches[0].get_path().vertices))
+        self.assertEqual(window.ax.get_xlim(), (-3, 3))
+        self.assertEqual(window.ax.get_ylim(), (-3, 3))
+        self.assertFalse(np.allclose(first_arrow, window.ax.patches[-1].get_path().vertices))
+
+    def test_snapshot_fragmented_and_reconnect(self):
+        cells = np.zeros(10000, dtype=np.uint8)
+        cells[0:4] = [0, 1, 2, 3]
+        packed = (cells.reshape(-1, 4) * np.array([1, 4, 16, 64], dtype=np.uint8)).sum(axis=1).astype(np.uint8)
+        payload = b'M\x03' + struct.pack('<IfffB', 1234, 0.1, -0.2, 0.3, 1) + packed.tobytes()
+        body = struct.pack('<H', len(payload)) + payload
+        wire = b'\xa5\x5a' + body + struct.pack('<H', crc16(body))
+        parser = StreamParser()
+        self.assertEqual(parser.feed(wire[:1000]), [])
+        row, = parser.feed(wire[1000:])
+        self.assertEqual(row[:2], ('map', 1234))
+        np.testing.assert_array_equal(row[3].ravel()[:4], [0, 1, 2, 3])
+        self.assertEqual(StreamParser().feed(wire)[0][1], 1234)
+
+    def test_obstacle_boxes_use_closed_cells(self):
+        mask = np.zeros((8, 8), dtype=bool)
+        mask[1, 1:4] = True; mask[5:7, 6] = True
+        self.assertEqual(obstacle_boxes(mask), [(1, 1, 4, 2), (6, 5, 7, 7)])
 
     def test_fragmented_and_coalesced(self):
         parser = StreamParser(); frame = packet()

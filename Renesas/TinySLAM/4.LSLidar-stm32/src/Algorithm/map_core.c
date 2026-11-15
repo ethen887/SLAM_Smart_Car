@@ -150,3 +150,79 @@ int map_copy(const Map *map, Cell *out, int count)
     memcpy(out, map->cells, (size_t)map->c.width * (size_t)map->c.height * sizeof(Cell));
     return 0;
 }
+
+int map_close_obstacles(const Map *map, uint8_t *out, uint8_t *scratch, int capacity)
+{
+    if (!map) return -1;
+    return map_close_cells(map->cells, map->c.width, map->c.height, out, scratch, capacity);
+}
+
+int map_close_cells(const Cell *cells, int w, int h, uint8_t *out, uint8_t *scratch, int capacity)
+{
+    if (!cells || !out || !scratch || out == scratch || w <= 0 || h <= 0 ||
+        w > 10000 || h > 10000 || capacity < w * h) return -1;
+    /* Dilation: outside the map is unoccupied. */
+    for (int y = 0; y < h; ++y) for (int x = 0; x < w; ++x) {
+        uint8_t value = 0;
+        for (int dy = -1; dy <= 0 && !value; ++dy) for (int dx = -1; dx <= 0; ++dx) {
+            int xx = x + dx, yy = y + dy;
+            if (xx >= 0 && xx < w && yy >= 0 && yy < h) {
+                const Cell *cell = &cells[yy * w + xx];
+                if (cell->observed && cell->log_odds > 0.0f) { value = 1; break; }
+            }
+        }
+        scratch[y * w + x] = value;
+    }
+    /* Erosion ignores neighbors outside the finite map, preserving edges. */
+    for (int y = 0; y < h; ++y) for (int x = 0; x < w; ++x) {
+        uint8_t value = 1;
+        for (int dy = 0; dy <= 1 && value; ++dy) for (int dx = 0; dx <= 1; ++dx) {
+            int xx = x + dx, yy = y + dy;
+            if (xx >= 0 && xx < w && yy >= 0 && yy < h && !scratch[yy * w + xx]) {
+                value = 0; break;
+            }
+        }
+        out[y * w + x] = value;
+    }
+    return 0;
+}
+
+int map_classify_walls(uint8_t *mask, int w, int h, float resolution,
+                       uint8_t *visited, uint16_t *queue, int capacity)
+{
+    if (!mask || !visited || !queue || w <= 0 || h <= 0 || w > 255 || h > 255 ||
+        capacity < w * h || !isfinite(resolution) || resolution <= 0) return -1;
+    memset(visited, 0, (size_t)w * (size_t)h);
+    for (int start = 0; start < w*h; ++start) {
+        if (!mask[start] || visited[start]) continue;
+        int head = 0, count = 0; queue[count++] = (uint16_t)start; visited[start] = 1;
+        float sx=0, sy=0, sxx=0, syy=0, sxy=0;
+        while (head < count) {
+            int i = queue[head++], x = i % w, y = i / w;
+            float fx=(float)x, fy=(float)y;
+            sx += fx; sy += fy; sxx += fx*fx; syy += fy*fy; sxy += fx*fy;
+            for (int dy=-1; dy<=1; ++dy) for (int dx=-1; dx<=1; ++dx) {
+                int xx=x+dx, yy=y+dy;
+                if (xx<0 || xx>=w || yy<0 || yy>=h) continue;
+                int j=yy*w+xx;
+                if (mask[j] && !visited[j]) { visited[j]=1; queue[count++]=(uint16_t)j; }
+            }
+        }
+        if (count < 5) continue;
+        float n=(float)count, mx=sx/n, my=sy/n;
+        float xx=sxx/n-mx*mx, yy=syy/n-my*my, xy=sxy/n-mx*my;
+        float disc=sqrtf((xx-yy)*(xx-yy)+4*xy*xy);
+        float major=(xx+yy+disc)*0.5f, minor=(xx+yy-disc)*0.5f;
+        float angle=0.5f*atan2f(2*xy,xx-yy), c=cosf(angle), s=sinf(angle);
+        float lo=1e30f, hi=-1e30f;
+        for (int k=0;k<count;++k) {
+            int i=queue[k]; float projection=(float)(i%w)*c+(float)(i/w)*s;
+            if (projection<lo) lo=projection;
+            if (projection>hi) hi=projection;
+        }
+        /* Conservative shape heuristic; wall cells remain occupied. */
+        if ((hi-lo+1)*resolution >= 1.2f && major >= 9.0f*fmaxf(minor, 0.25f))
+            for (int k=0;k<count;++k) mask[queue[k]]=2;
+    }
+    return 0;
+}

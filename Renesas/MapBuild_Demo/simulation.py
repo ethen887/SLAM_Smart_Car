@@ -10,6 +10,25 @@ class Ray(ct.Structure):
     _fields_ = [('angle',ct.c_float),('distance',ct.c_float),('hit',ct.c_int)]
 class Cell(ct.Structure):
     _fields_ = [('log_odds',ct.c_float),('last_frame',ct.c_uint32),('observed',ct.c_uint8)]
+
+def close_obstacles(grid, library, resolution=0.05):
+    """Run the same C closing used by the board on a simulation snapshot."""
+    h, w = grid.shape; n = h*w
+    cells = (Cell*n)()
+    view = np.ctypeslib.as_array(cells)
+    view['log_odds'] = grid['log'].ravel()
+    view['observed'] = grid['seen'].ravel()
+    out = (ct.c_uint8*n)(); scratch = (ct.c_uint8*n)()
+    library.map_close_cells.argtypes = [ct.POINTER(Cell), ct.c_int, ct.c_int,
+                                        ct.POINTER(ct.c_uint8), ct.POINTER(ct.c_uint8), ct.c_int]
+    library.map_close_cells.restype = ct.c_int
+    if library.map_close_cells(cells, w, h, out, scratch, n): raise RuntimeError('障碍物闭运算失败')
+    queue = (ct.c_uint16*n)()
+    library.map_classify_walls.argtypes = [ct.POINTER(ct.c_uint8), ct.c_int, ct.c_int, ct.c_float,
+                                          ct.POINTER(ct.c_uint8), ct.POINTER(ct.c_uint16), ct.c_int]
+    library.map_classify_walls.restype = ct.c_int
+    if library.map_classify_walls(out, w, h, resolution, scratch, queue, n): raise RuntimeError('墙面分类失败')
+    return np.ctypeslib.as_array(out).copy().reshape(h, w)
 class Grid:
     def __init__(self, lib, settings):
         self.lib=ct.CDLL(str(lib)); self.lib.map_create.argtypes=[ct.POINTER(Config)]; self.lib.map_create.restype=ct.c_void_p
