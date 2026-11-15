@@ -78,7 +78,13 @@ class RealMappingWindow:
                               values=('板端原方向', '反向（电脑）'))
         angles.pack(side='left', padx=4)
         angles.bind('<<ComboboxSelected>>', self.angle_changed)
-        ttk.Label(top, text='921600 / 8N1').pack(side='left', padx=8)
+        serial_options = ttk.Frame(self.win); serial_options.pack(fill='x', padx=8)
+        ttk.Label(serial_options, text='波特率').pack(side='left')
+        self.baud = tk.StringVar(value='9600')
+        self.baud_select = ttk.Combobox(serial_options, textvariable=self.baud, width=12,
+                                        values=('9600', '19200', '38400', '57600', '115200', '230400', '460800', '921600'))
+        self.baud_select.pack(side='left', padx=4)
+        ttk.Label(serial_options, text='8N1（可输入其他波特率；连接后修改需重新连接）').pack(side='left')
         self.status = tk.StringVar(value='选择串口并连接；要与板端从头对应，请连接后重启瑞萨板。')
         ttk.Label(self.win, textvariable=self.status).pack(fill='x', padx=8)
         self.fig = Figure(figsize=(7, 7)); self.ax = self.fig.add_subplot(111)
@@ -108,13 +114,19 @@ class RealMappingWindow:
     def connect(self):
         if self.device: return
         try:
+            baud = int(self.baud.get().strip())
+            if baud <= 0:
+                raise ValueError('波特率必须是大于 0 的整数')
+        except ValueError:
+            messagebox.showerror('波特率错误', '请输入大于 0 的整数波特率。', parent=self.win); return
+        try:
             import serial
-            self.device = serial.Serial(self.port.get(), 921600, timeout=0.1)
+            self.device = serial.Serial(self.port.get(), baud, timeout=0.1)
         except Exception as exc:
             messagebox.showerror('串口连接失败', str(exc), parent=self.win); return
         self.stop.clear(); self.parser = StreamParser(); self.queue = queue.Queue(maxsize=2000); self.clear()
         self.worker = threading.Thread(target=self.read_loop, daemon=True); self.worker.start()
-        self.status.set('已连接。请重启瑞萨板，以便电脑与板端从空地图同步开始。')
+        self.status.set(f'已连接 {self.port.get()}，波特率 {baud}。请重启瑞萨板，以便电脑与板端从空地图同步开始。')
 
     def read_loop(self):
         try:
