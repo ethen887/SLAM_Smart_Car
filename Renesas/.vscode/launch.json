@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "RA8P1: Build, flash and debug (J-Link)",
+      "type": "renesas-hardware",
+      "request": "launch",
+      "preLaunchTask": "RA8P1: Build Debug firmware",
+      "gdb": "${env:ARM_GCC_TOOLCHAIN_PATH}/arm-none-eabi-gdb.exe",
+      "target": {
+        "debuggerType": "SEGGERJLINKARM",
+        "deviceFamily": "RA",
+        "device": "R7KA8P1KF_CPU0",
+        "serverParameters": {
+          "-uInteface=": "SWD"
+        }
+      },
+      "images": [
+        {
+          "file": "${workspaceFolder}/TinySLAM/3.LSLidar/build/Debug/LSLidar.elf",
+          "type": "image-and-symbols",
+          "program": true
+        }
+      ]
+    }
+  ]
+}
