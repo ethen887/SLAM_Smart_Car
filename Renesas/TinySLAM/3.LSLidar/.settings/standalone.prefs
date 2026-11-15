@@ -1,8 +1,7 @@
-<<<<<<< HEAD
-#Sun Nov 15 15:47:50 CST 2026
-=======
-#Sun Nov 15 15:50:04 CST 2026
->>>>>>> fc08dbe8eebf969078cb18609fe74a36e599ebc0
+#Sun Nov 15 16:07:16 CST 2026
+=\=\=\=\=\=\=
+<<<<<<<=HEAD
+>>>>>>>=fc08dbe8eebf969078cb18609fe74a36e599ebc0
 com.renesas.cdt.ddsc.content/com.renesas.cdt.ddsc.content.defaultlinkerscript=script/fsp.ld
 com.renesas.cdt.ddsc.contentgen.options/options/suppresswarningspaths=ra/arm,ra/aws
 com.renesas.cdt.ddsc.contentgen.options/options/toolchainversion=13.2.1
@@ -36,8 +35,6 @@ com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_sc
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_sci_b_uart\#\#\#\#6.5.0/libraries=
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#Middleware\#\#all\#\#rm_freertos_port\#\#\#\#6.5.0/all=1041992296,ra/fsp/src/rm_freertos_port/port.c|4290761558,ra/fsp/src/rm_freertos_port/portmacro.h
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#Middleware\#\#all\#\#rm_freertos_port\#\#\#\#6.5.0/libraries=
-com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#Projects\#\#all\#\#common\#\#\#\#6.5.0/all=
-com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#Projects\#\#all\#\#common\#\#\#\#6.5.0/libraries=
 com.renesas.cdt.ddsc.project.standalone.projectgenerationoptions/ideProjectType=CMAKE
 com.renesas.cdt.ddsc.project.standalone.projectgenerationoptions/isCpp=false
 com.renesas.cdt.ddsc.settingseditor/com.renesas.cdt.ddsc.settingseditor.active_page=SWPConfigurator
