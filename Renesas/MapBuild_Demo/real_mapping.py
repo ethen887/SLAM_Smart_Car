@@ -84,7 +84,9 @@ class RealMappingWindow:
 
     def clear(self):
         if self.grid: self.grid.close()
-        self.grid = Grid(self.lib, defaults()['map']); self.count = 0; self.last = None; self.gaps = 0; self.synced = False
+        settings = defaults()['map']
+        settings.update(resolution=0.1, origin_x=-5.0, origin_y=-5.0)
+        self.grid = Grid(self.lib, settings); self.count = 0; self.last = None; self.gaps = 0; self.synced = False
         self.draw(None)
 
     def connect(self):
@@ -130,8 +132,12 @@ class RealMappingWindow:
 
     def draw(self, pose):
         grid = self.grid.snapshot(); values = np.where(grid['seen'], 1.0 / (1.0 + np.exp(grid['log'])), 0.5)
-        self.ax.clear(); self.ax.imshow(values, origin='lower', extent=(-2.5,2.5,-2.5,2.5), cmap='gray', vmin=0, vmax=1)
+        cfg = self.grid.cfg
+        extent = (cfg.origin_x, cfg.origin_x + cfg.width * cfg.resolution,
+                  cfg.origin_y, cfg.origin_y + cfg.height * cfg.resolution)
+        self.ax.clear(); self.ax.imshow(values, origin='lower', extent=extent, cmap='gray', vmin=0, vmax=1)
         if pose: self.ax.plot(pose[0], pose[1], 'ro', markersize=4); self.ax.arrow(pose[0],pose[1],0.2*math.cos(pose[2]),0.2*math.sin(pose[2]),color='red',head_width=.06)
+        self.ax.set_xlim(extent[:2]); self.ax.set_ylim(extent[2:])
         self.ax.set_xlabel('X (m)'); self.ax.set_ylabel('Y (m)'); self.ax.set_aspect('equal'); self.canvas.draw_idle()
 
     def disconnect(self):

@@ -17,8 +17,8 @@ int main(void)
     g_robot_pose_valid = true;
     App_BuildMap_OnPoints(&point, 1);
     assert(g_build_map_frames == 1);
-    assert(g_build_map_cells[50 * 100 + 70].observed);
-    assert(g_build_map_cells[50 * 100 + 70].log_odds > 0);
+    assert(g_build_map_cells[50 * 100 + 60].observed);
+    assert(g_build_map_cells[50 * 100 + 60].log_odds > 0);
     assert(g_build_map_cells[50 * 100 + 55].log_odds < 0);
     puts("real mapping adapter tests passed");
 }

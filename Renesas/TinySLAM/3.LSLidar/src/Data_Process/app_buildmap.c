@@ -45,7 +45,7 @@ static void App_BuildMap_Send(const Pose *pose, const Ray *rays, uint8_t count)
 
 void App_BuildMap_Init(void)
 {
-    const MapConfig cfg = {MAP_WIDTH, MAP_HEIGHT, 0.05f, -2.5f, -2.5f,
+    const MapConfig cfg = {MAP_WIDTH, MAP_HEIGHT, 0.1f, -5.0f, -5.0f,
                            -0.40f, 0.85f, -4.0f, 4.0f};
     g_build_map_frames = 0;
     g_build_map_skipped_no_pose = 0;

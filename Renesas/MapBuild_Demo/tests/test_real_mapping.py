@@ -1,7 +1,11 @@
 import math
 import struct
 import unittest
-from real_mapping import StreamParser, crc16
+from types import SimpleNamespace
+from unittest.mock import Mock
+import numpy as np
+from matplotlib.figure import Figure
+from real_mapping import RealMappingWindow, StreamParser, crc16
 
 
 def packet(seq=1):
@@ -11,6 +15,24 @@ def packet(seq=1):
 
 
 class RealStreamTest(unittest.TestCase):
+    def test_fixed_map_view_and_rotating_heading(self):
+        grid = np.zeros((2, 2), dtype=[('seen', 'u1'), ('log', 'f4')])
+        grid['seen'][0, 1] = 1
+        grid['log'][0, 1] = 2
+        window = SimpleNamespace(
+            grid=SimpleNamespace(snapshot=lambda: grid,
+                                 cfg=SimpleNamespace(origin_x=-1, origin_y=-1,
+                                                     width=2, height=2, resolution=1)),
+            ax=Figure().add_subplot(111), canvas=SimpleNamespace(draw_idle=Mock()))
+        RealMappingWindow.draw(window, (0, 0, 0))
+        image = np.array(window.ax.images[0].get_array())
+        first_arrow = window.ax.patches[0].get_path().vertices.copy()
+        RealMappingWindow.draw(window, (0, 0, math.pi / 2))
+        np.testing.assert_array_equal(image, window.ax.images[0].get_array())
+        self.assertEqual(window.ax.get_xlim(), (-1, 1))
+        self.assertEqual(window.ax.get_ylim(), (-1, 1))
+        self.assertFalse(np.allclose(first_arrow, window.ax.patches[0].get_path().vertices))
+
     def test_fragmented_and_coalesced(self):
         parser = StreamParser(); frame = packet()
         self.assertEqual(parser.feed(frame[:11]), [])
