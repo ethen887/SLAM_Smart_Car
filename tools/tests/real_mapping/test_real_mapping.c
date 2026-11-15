@@ -12,10 +12,11 @@ int main(void)
 {
     OnePointDef point = {0, 1000};
     App_BuildMap_Init();
-    App_BuildMap_OnPoints(&point, 1);
+    App_BuildMap_OnPoints(&point, 1, NULL);
     assert(g_build_map_skipped_no_pose == 1 && g_build_map_frames == 0);
     g_robot_pose_valid = true;
-    App_BuildMap_OnPoints(&point, 1);
+    Stm32PoseDef pose = {0};
+    App_BuildMap_OnPoints(&point, 1, &pose);
     assert(g_build_map_frames == 1);
     assert(g_build_map_cells[50 * 100 + 60].observed);
     assert(g_build_map_cells[50 * 100 + 60].log_odds > 0);

@@ -2,6 +2,8 @@
 #define GPT_H
 
 #include <stdint.h>
+#include <stdbool.h>
+extern volatile bool g_timestamp_ready;
 
 /**
  * @brief 初始化计时器 (g_timer8)

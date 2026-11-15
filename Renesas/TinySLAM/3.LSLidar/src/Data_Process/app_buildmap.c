@@ -1,6 +1,7 @@
 #include "app_buildmap.h"
 #include "stm32_data_process.h"
 #include "Serial_debug.h"
+#include "usb_serial.h"
 #include <math.h>
 #include <string.h>
 
@@ -41,6 +42,7 @@ static void App_BuildMap_Send(const Pose *pose, const Ray *rays, uint8_t count)
     }
     data[4 + payload] = (uint8_t)crc; data[5 + payload] = (uint8_t)(crc >> 8);
     if (!Serial_debug_send(data, (uint32_t)payload + 6U)) g_build_map_stream_dropped++;
+    UsbSerial_send(data, (uint32_t)payload + 6U);
 }
 
 void App_BuildMap_Init(void)
@@ -54,15 +56,15 @@ void App_BuildMap_Init(void)
                          MAP_WIDTH * MAP_HEIGHT) == 0;
 }
 
-void App_BuildMap_OnPoints(const OnePointDef *points, uint16_t count)
+void App_BuildMap_OnPoints(const OnePointDef *points, uint16_t count, const Stm32PoseDef *sample)
 {
     if (!map_ready || points == NULL) return;
-    if (!g_robot_pose_valid) { g_build_map_skipped_no_pose++; return; }
+    if (sample == NULL) { g_build_map_skipped_no_pose++; return; }
     if (count > POINT_PER_PACK) count = POINT_PER_PACK;
-    const float c = cosf(g_robot_yaw), s = sinf(g_robot_yaw);
-    Pose pose = {g_robot_x + c * g_lidar_offset_x_m - s * g_lidar_offset_y_m,
-                 g_robot_y + s * g_lidar_offset_x_m + c * g_lidar_offset_y_m,
-                 g_robot_yaw + g_lidar_yaw_rad};
+    const float c = cosf(sample->yaw), s = sinf(sample->yaw);
+    Pose pose = {sample->x + c * g_lidar_offset_x_m - s * g_lidar_offset_y_m,
+                 sample->y + s * g_lidar_offset_x_m + c * g_lidar_offset_y_m,
+                 sample->yaw + g_lidar_yaw_rad};
     Ray rays[POINT_PER_PACK];
     int valid = 0;
     for (uint16_t i = 0; i < count; i++) {

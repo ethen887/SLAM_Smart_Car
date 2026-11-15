@@ -18,6 +18,13 @@
             [11] = sci_b_uart_tei_isr, /* SCI0 TEI (Transmit end) */
             [12] = sci_b_uart_eri_isr, /* SCI0 ERI (Receive error) */
             [13] = dmac_int_isr, /* DMAC2 INT (DMAC2 transfer end) */
+            [14] = usbfs_interrupt_handler, /* USBFS INT (USBFS interrupt) */
+            [15] = usbfs_resume_handler, /* USBFS RESUME (USBFS resume interrupt) */
+            [16] = usbfs_d0fifo_handler, /* USBFS FIFO 0 (DMA/DTC transfer request 0) */
+            [17] = usbfs_d1fifo_handler, /* USBFS FIFO 1 (DMA/DTC transfer request 1) */
+            [18] = usbhs_interrupt_handler, /* USBHS USB INT RESUME (USBHS interrupt) */
+            [19] = usbhs_d0fifo_handler, /* USBHS FIFO 0 (DMA transfer request 0) */
+            [20] = usbhs_d1fifo_handler, /* USBHS FIFO 1 (DMA transfer request 1) */
         };
         #if BSP_FEATURE_ICU_HAS_IELSR
         const bsp_interrupt_event_t g_interrupt_event_link_select[BSP_ICU_VECTOR_NUM_ENTRIES] =
@@ -36,6 +43,13 @@
             [11] = BSP_PRV_VECT_ENUM(EVENT_SCI0_TEI,GROUP3), /* SCI0 TEI (Transmit end) */
             [12] = BSP_PRV_VECT_ENUM(EVENT_SCI0_ERI,GROUP4), /* SCI0 ERI (Receive error) */
             [13] = BSP_PRV_VECT_ENUM(EVENT_DMAC2_INT,GROUP5), /* DMAC2 INT (DMAC2 transfer end) */
+            [14] = BSP_PRV_VECT_ENUM(EVENT_USBFS_INT,GROUP6), /* USBFS INT (USBFS interrupt) */
+            [15] = BSP_PRV_VECT_ENUM(EVENT_USBFS_RESUME,GROUP7), /* USBFS RESUME (USBFS resume interrupt) */
+            [16] = BSP_PRV_VECT_ENUM(EVENT_USBFS_FIFO_0,GROUP0), /* USBFS FIFO 0 (DMA/DTC transfer request 0) */
+            [17] = BSP_PRV_VECT_ENUM(EVENT_USBFS_FIFO_1,GROUP1), /* USBFS FIFO 1 (DMA/DTC transfer request 1) */
+            [18] = BSP_PRV_VECT_ENUM(EVENT_USBHS_USB_INT_RESUME,GROUP2), /* USBHS USB INT RESUME (USBHS interrupt) */
+            [19] = BSP_PRV_VECT_ENUM(EVENT_USBHS_FIFO_0,GROUP3), /* USBHS FIFO 0 (DMA transfer request 0) */
+            [20] = BSP_PRV_VECT_ENUM(EVENT_USBHS_FIFO_1,GROUP4), /* USBHS FIFO 1 (DMA transfer request 1) */
         };
         #endif
         #endif

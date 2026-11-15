@@ -6,6 +6,7 @@
 #include "stm32_data_process.h" 
 #include "link_stm32.h"
 #include "Serial_debug.h" 
+#include "usb_serial.h"
 #include "app_buildmap.h"
 #include "gpt.h"
 #include "FreeRTOS.h"
@@ -13,15 +14,20 @@
 #include <string.h>
 #include <stdio.h>
 
+volatile uint32_t g_mapping_cycles;
+volatile uint32_t g_mapping_overruns;
+volatile uint64_t g_mapping_last_us;
+volatile uint64_t g_mapping_max_us;
+
 void new_thread0_entry(void *pvParameters)
 {
     (void)pvParameters;
 
     // 1. 初始化外设
     Serial_debug_init();
+    UsbSerial_init();
     gpt_init();
     App_BuildMap_Init();
-    lidar_set_points_callback(App_BuildMap_OnPoints);
     
     // 初始化雷达
     fsp_err_t err = lidar_data_process_init();
@@ -41,12 +47,20 @@ void new_thread0_entry(void *pvParameters)
     const char *startup_msg = "\r\n=== System Started (Lidar + STM32 Merged) ===\r\n";
     Serial_debug_send((const uint8_t *)startup_msg, strlen(startup_msg));
 
+    TickType_t last_wake = xTaskGetTickCount();
     for (;;) {
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(200));
+        uint64_t started_us = gpt_get_timestamp_us();
+        taskENTER_CRITICAL();
+        uint32_t stm32_snapshot = stm32_data_snapshot();
+        uint32_t lidar_snapshot = lidar_data_snapshot();
+        taskEXIT_CRITICAL();
         // ==========================================================
         // 1. 底层解析
         // ==========================================================
-        Stm32_Data_Process();
-        LiDar_Data_Process();
+        Stm32_Data_Process(stm32_snapshot);
+        LiDar_Data_Process(lidar_snapshot);
+        Serial_debug_poll();
 
         // ==========================================================
         // 2. 融合发数据
@@ -54,8 +68,12 @@ void new_thread0_entry(void *pvParameters)
         if (g_new_lidar_ready) {
             g_new_lidar_ready = false;
         }
+        uint64_t elapsed_us = gpt_get_timestamp_us() - started_us;
+        g_mapping_last_us = elapsed_us;
+        if (elapsed_us > g_mapping_max_us) g_mapping_max_us = elapsed_us;
+        if (elapsed_us > 200000U) g_mapping_overruns++;
+        g_mapping_cycles++;
 
-        vTaskDelay(pdMS_TO_TICKS(1)); 
     }
 }
 

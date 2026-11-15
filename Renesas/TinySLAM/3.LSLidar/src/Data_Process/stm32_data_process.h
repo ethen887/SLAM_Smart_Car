@@ -26,7 +26,10 @@ typedef struct{
 fsp_err_t stm32_data_process_init(void);
 
 /** 处理队列中的数据 */
-void Stm32_Data_Process(void);
+uint32_t stm32_data_snapshot(void);
+void Stm32_Data_Process(uint32_t snapshot);
+extern volatile uint32_t g_stm32_blocks_overwritten;
+bool stm32_pose_at(uint64_t receive_us, Stm32PoseDef *pose);
 
 // ★ 暴露给主循环建图使用的全局最新位姿
 extern uint32_t g_robot_time;

@@ -3,6 +3,7 @@
 
 #include "lidar_n10.h"
 #include "map_core.h"
+#include "link_stm32.h"
 
 /** 地图及统计量保留在 RAM 中，可通过调试器观察。 */
 extern Map g_build_map;
@@ -17,10 +18,10 @@ extern float g_lidar_angle_sign;
 void App_BuildMap_Init(void);
 
 /**
- * @brief 接收一包雷达点，并使用最新有效里程计更新地图。
+ * @brief 接收一包雷达点，并使用近似匹配的里程计更新地图。
  * @param points 雷达解析后的点数组。
  * @param count 数组中有效点的数量。
- * @note 在雷达数据处理任务调用；当前不进行时间匹配。
+ * @param pose 按 RA 侧 DMA 接收时间匹配的位姿；无可用位姿时传 NULL。
  */
-void App_BuildMap_OnPoints(const OnePointDef *points, uint16_t count);
+void App_BuildMap_OnPoints(const OnePointDef *points, uint16_t count, const Stm32PoseDef *pose);
 #endif

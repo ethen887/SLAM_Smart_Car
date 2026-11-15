@@ -6,8 +6,12 @@
 
 /* 环形队列的总容量（字节），建议设为 2 的幂次方，如 4096 */
 #define TX_BUFFER_SIZE 4096U
+extern volatile uint32_t g_serial_tx_dropped_packets;
+extern volatile uint32_t g_serial_tx_max_queued_bytes;
+extern volatile uint32_t g_serial_tx_start_errors;
 
 void Serial_debug_init(void);
+void Serial_debug_poll(void);
 
 /**
  * @brief 将数据非阻塞地放入发送队列 (支持任意二进制或字符串)

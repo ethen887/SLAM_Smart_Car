@@ -24,15 +24,13 @@ typedef struct{
 
 /** 启动雷达接收；成功时返回 FSP_SUCCESS。 */
 fsp_err_t lidar_data_process_init(void);
-void LiDar_Data_Process(void); // 处理队列中的数据
+uint32_t lidar_data_snapshot(void);
+void LiDar_Data_Process(uint32_t snapshot);
+extern volatile uint32_t g_lidar_blocks_overwritten;
 
 // ★ 暴露给主循环建图使用的全局雷达点云
 extern OnePointDef g_lidar_points_frame[LIDAR_DATA_BLOCK_SIZE / LIDAR_N10_FRAME_SIZE][POINT_PER_PACK];
 extern bool g_new_lidar_ready;
 extern uint16_t g_lidar_frame_count;
-
-typedef void (*lidar_points_callback_t)(const OnePointDef *points, uint16_t count);
-/** @brief 设置有效雷达包的接收回调，在处理任务上下文中调用。 */
-void lidar_set_points_callback(lidar_points_callback_t callback);
 
 #endif

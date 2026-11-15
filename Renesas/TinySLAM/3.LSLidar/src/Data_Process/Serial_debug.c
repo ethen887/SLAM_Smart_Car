@@ -11,6 +11,9 @@ static volatile uint32_t tx_head = 0; // 写指针（业务层写）
 static volatile uint32_t tx_tail = 0; // 读指针（中断读）
 static volatile bool is_tx_active = false; // 是否正在发送
 static volatile uint32_t tx_active_len = 0;
+volatile uint32_t g_serial_tx_dropped_packets;
+volatile uint32_t g_serial_tx_max_queued_bytes;
+volatile uint32_t g_serial_tx_start_errors;
 
 static uart_dtc_config_t debug_uart_dtc_cfg;
 
@@ -61,9 +64,17 @@ static void Serial_Start_TX(void)
     // 启动 DTC 发送
     tx_active_len = current_tx_len;
     if (R_SCI_B_UART_Write(&g_uart2_ctrl, &tx_ring_buffer[tx_tail], current_tx_len) != FSP_SUCCESS) {
+        g_serial_tx_start_errors++;
         is_tx_active = false;
         tx_active_len = 0;
     }
+}
+
+void Serial_debug_poll(void)
+{
+    taskENTER_CRITICAL();
+    Serial_Start_TX();
+    taskEXIT_CRITICAL();
 }
 
 /**
@@ -89,9 +100,11 @@ bool Serial_debug_send(const uint8_t *data, uint32_t len)
     taskENTER_CRITICAL();
     uint32_t available = (tx_head >= tx_tail) ? tx_head - tx_tail : TX_BUFFER_SIZE - tx_tail + tx_head;
     if (len > TX_BUFFER_SIZE - 1U - available) {
+        g_serial_tx_dropped_packets++;
         taskEXIT_CRITICAL();
         return false;
     }
+    if (available + len > g_serial_tx_max_queued_bytes) g_serial_tx_max_queued_bytes = available + len;
     // 拷贝数据到环形队列
     for (uint32_t i = 0; i < len; i++) {
         uint32_t next_head = (tx_head + 1) % TX_BUFFER_SIZE;

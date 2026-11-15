@@ -10,8 +10,8 @@
     "src"
   ],
   "companionSourcePaths": [
-    "ra/aws",
-    "ra/arm"
+    "ra/arm",
+    "ra/aws"
   ],
   "excludedFilePaths": [],
   "includePaths": [
@@ -20,6 +20,7 @@
     "ra/fsp/inc",
     "ra/fsp/inc/api",
     "ra/fsp/inc/instances",
+    "ra/fsp/src/r_usb_basic/src/driver/inc",
     "ra/fsp/src/rm_freertos_port",
     "ra_cfg/aws",
     "ra_cfg/fsp_cfg",
