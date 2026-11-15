@@ -5,7 +5,9 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 import numpy as np
 from matplotlib.figure import Figure
-from real_mapping import RealMappingWindow, StreamParser, crc16
+from real_mapping import RealMappingWindow, StreamParser, crc16, map_rays
+from simulation import Grid, defaults
+from run_demo import build
 
 
 def packet(seq=1):
@@ -15,6 +17,20 @@ def packet(seq=1):
 
 
 class RealStreamTest(unittest.TestCase):
+    def test_clockwise_lidar_wall_stays_fixed_during_turn(self):
+        lib = build().with_name('libmapreal.dll' if __import__('sys').platform == 'win32' else 'libmapreal.so')
+        grid = Grid(lib, defaults()['map'])
+        try:
+            # A wall point at (1, 0): clockwise raw angle advances as the car turns left.
+            for frame, yaw in enumerate((0, math.pi / 2, -math.pi / 2), 1):
+                rays = map_rays([(yaw, 1.0, 1)], reverse=True)
+                grid.update((0, 0, yaw), rays, frame)
+            cells = grid.snapshot()
+            self.assertGreater(cells['log'][50, 70], 2.0)
+            self.assertFalse(cells['seen'][50, 30])
+        finally:
+            grid.close()
+
     def test_fixed_map_view_and_rotating_heading(self):
         grid = np.zeros((2, 2), dtype=[('seen', 'u1'), ('log', 'f4')])
         grid['seen'][0, 1] = 1

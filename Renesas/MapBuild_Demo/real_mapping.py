@@ -21,6 +21,12 @@ def crc16(data):
     return crc
 
 
+def map_rays(rays, reverse):
+    """Convert the board's ray angles for the selected PC-side convention."""
+    return [(-angle if reverse else angle, distance, hit)
+            for angle, distance, hit in rays]
+
+
 class StreamParser:
     def __init__(self):
         self.buf = bytearray()
@@ -66,6 +72,12 @@ class RealMappingWindow:
         ttk.Button(top, text='连接', command=self.connect).pack(side='left', padx=4)
         ttk.Button(top, text='断开', command=self.disconnect).pack(side='left')
         ttk.Button(top, text='清空电脑地图', command=self.clear).pack(side='left', padx=4)
+        ttk.Label(top, text='雷达角度').pack(side='left')
+        self.angle_mode = tk.StringVar(value='板端原方向')
+        angles = ttk.Combobox(top, textvariable=self.angle_mode, width=12, state='readonly',
+                              values=('板端原方向', '反向（电脑）'))
+        angles.pack(side='left', padx=4)
+        angles.bind('<<ComboboxSelected>>', self.angle_changed)
         ttk.Label(top, text='921600 / 8N1').pack(side='left', padx=8)
         self.status = tk.StringVar(value='选择串口并连接；要与板端从头对应，请连接后重启瑞萨板。')
         ttk.Label(self.win, textvariable=self.status).pack(fill='x', padx=8)
@@ -88,6 +100,10 @@ class RealMappingWindow:
         settings.update(resolution=0.1, origin_x=-5.0, origin_y=-5.0)
         self.grid = Grid(self.lib, settings); self.count = 0; self.last = None; self.gaps = 0; self.synced = False
         self.draw(None)
+
+    def angle_changed(self, _event=None):
+        self.clear()
+        self.status.set('角度方向已更改并清空电脑地图；电脑端反向时与板端地图不同。')
 
     def connect(self):
         if self.device: return
@@ -123,10 +139,11 @@ class RealMappingWindow:
             if self.last is not None and seq != ((self.last + 1) & 0xffffffff):
                 if seq == 1: self.clear(); self.synced = True
                 else: self.gaps += 1; self.synced = False
-            self.grid.update(pose, rays, seq); self.last = seq; self.count += 1
+            self.grid.update(pose, map_rays(rays, self.angle_mode.get() == '反向（电脑）'), seq); self.last = seq; self.count += 1
         if pose is not None:
             self.draw(pose)
-            sync = '从首帧开始' if self.synced else '未从首帧开始或有丢帧，地图可能不一致'
+            sync = ('电脑端角度反向，地图与板端不同' if self.angle_mode.get() == '反向（电脑）' else
+                    '从首帧开始' if self.synced else '未从首帧开始或有丢帧，地图可能不一致')
             self.status.set(f'{sync}；已处理 {self.count} 包，板端序号 {self.last}，间断 {self.gaps}，CRC/格式错误 {self.parser.bad}')
         self.win.after(100, self.tick)
 
