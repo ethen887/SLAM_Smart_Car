@@ -6,10 +6,18 @@
 #include "stm32_data_process.h" 
 #include "link_stm32.h"
 #include "Serial_debug.h" 
+#include "usb_serial.h"
+#include "app_buildmap.h"
+#include "gpt.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include <string.h>
 #include <stdio.h>
+
+volatile uint32_t g_mapping_cycles;
+volatile uint32_t g_mapping_overruns;
+volatile uint64_t g_mapping_last_us;
+volatile uint64_t g_mapping_max_us;
 
 void new_thread0_entry(void *pvParameters)
 {
@@ -17,6 +25,9 @@ void new_thread0_entry(void *pvParameters)
 
     // 1. 初始化外设
     Serial_debug_init();
+    UsbSerial_init();
+    gpt_init();
+    App_BuildMap_Init();
     
     // 初始化雷达
     fsp_err_t err = lidar_data_process_init();
@@ -36,51 +47,34 @@ void new_thread0_entry(void *pvParameters)
     const char *startup_msg = "\r\n=== System Started (Lidar + STM32 Merged) ===\r\n";
     Serial_debug_send((const uint8_t *)startup_msg, strlen(startup_msg));
 
+    TickType_t last_wake = xTaskGetTickCount();
     for (;;) {
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(200));
+        uint64_t started_us = gpt_get_timestamp_us();
+        taskENTER_CRITICAL();
+        uint32_t stm32_snapshot = stm32_data_snapshot();
+        uint32_t lidar_snapshot = lidar_data_snapshot();
+        taskEXIT_CRITICAL();
         // ==========================================================
         // 1. 底层解析
         // ==========================================================
-        Stm32_Data_Process();
-        LiDar_Data_Process();
+        Stm32_Data_Process(stm32_snapshot);
+        LiDar_Data_Process(lidar_snapshot);
+        Serial_debug_poll();
+        App_BuildMap_PublishSnapshot();
 
         // ==========================================================
         // 2. 融合发数据
         // ==========================================================
         if (g_new_lidar_ready) {
             g_new_lidar_ready = false;
-
-            static char tx_buf[4096];
-            uint32_t total_tx_len = 0;
-
-            int32_t ix = (int32_t)(g_robot_x * 100.0f);
-            int32_t iy = (int32_t)(g_robot_y * 100.0f);
-            int32_t iyaw = (int32_t)(g_robot_yaw * 100.0f);
-            int max_frames = (int)(LIDAR_DATA_BLOCK_SIZE / LIDAR_N10_FRAME_SIZE);
-
-            for (int i = 0; i < max_frames; i++) {
-                if (total_tx_len < sizeof(tx_buf) - 512) {
-                    total_tx_len += snprintf(&tx_buf[total_tx_len], sizeof(tx_buf) - total_tx_len, 
-                                             "%u,%d,%d,%d,", 
-                                             g_robot_time, ix, iy, iyaw);
-                    
-                    for (int p = 0; p < POINT_PER_PACK; p++) {
-                        total_tx_len += snprintf(&tx_buf[total_tx_len], sizeof(tx_buf) - total_tx_len, 
-                                                 "%d.%02d,%d,", 
-                                                 g_lidar_points_frame[i][p].angle / 100, 
-                                                 g_lidar_points_frame[i][p].angle % 100, 
-                                                 g_lidar_points_frame[i][p].distance);
-                    }
-                    
-                    tx_buf[total_tx_len++] = '\n';
-                }
-            }
-            
-            if (total_tx_len > 0) {
-                Serial_debug_send((const uint8_t *)tx_buf, total_tx_len);
-            }
         }
+        uint64_t elapsed_us = gpt_get_timestamp_us() - started_us;
+        g_mapping_last_us = elapsed_us;
+        if (elapsed_us > g_mapping_max_us) g_mapping_max_us = elapsed_us;
+        if (elapsed_us > 200000U) g_mapping_overruns++;
+        g_mapping_cycles++;
 
-        vTaskDelay(pdMS_TO_TICKS(1)); 
     }
 }
 

@@ -1,0 +1,21 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "RA8P1: Build Debug firmware",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "${workspaceFolder}/TinySLAM/3.LSLidar/build/Debug", "--target", "LSLidar.elf"],
+      "problemMatcher": ["$gcc"],
+      "group": "build"
+    },
+    {
+      "label": "RA8P1: Flash via USB Boot (RFP)",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/Flash/flash-usb.ps1"],
+      "problemMatcher": [],
+      "presentation": {"reveal": "always", "panel": "shared"}
+    }
+  ]
+}

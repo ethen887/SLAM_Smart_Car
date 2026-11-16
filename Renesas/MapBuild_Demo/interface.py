@@ -3,6 +3,8 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog
 import numpy as np
+import ctypes as ct
+from matplotlib.collections import PatchCollection
 import matplotlib
 matplotlib.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -20,6 +22,7 @@ class App:
         for label,cmd in [('障碍物编辑',lambda:self.setmode('障碍物')),('航点编辑',lambda:self.setmode('航点')),('选择/移动',lambda:self.setmode('移动')),('删除选中',self.delete),('清空障碍物',self.clear),('编辑选中',self.edit),('航点前移',lambda:self.reorder(-1)),('航点后移',lambda:self.reorder(1)),('保存',self.save),('加载',self.load),('参数',self.settings),('导出',self.export),('清空监控',self.clear_monitors)]:ttk.Button(bar,text=label,command=cmd).pack(side='left',padx=2)
         self.closed=tk.BooleanVar(value=self.s['closed']);ttk.Checkbutton(bar,text='闭环',variable=self.closed,command=self.set_closed).pack(side='left')
         controls=ttk.Frame(self.root);controls.pack(fill='x',padx=8)
+        ttk.Button(controls,text='真实数据建图',command=self.open_real).pack(side='left',padx=4)
         for label,cmd in [('开始/继续',self.start),('暂停',self.pause),('单步前进',self.forward),('单步后退',self.back),('重置',self.reset)]:ttk.Button(controls,text=label,command=cmd).pack(side='left',padx=2)
         ttk.Label(controls,text='播放速度').pack(side='left',padx=(12,2));self.speed=tk.StringVar(value='1');ttk.Combobox(controls,textvariable=self.speed,values=['0.5','1','2','4'],width=5,state='readonly').pack(side='left')
         self.modevar=tk.StringVar();ttk.Label(controls,textvariable=self.modevar).pack(side='right');self.setmode('障碍物')
@@ -40,6 +43,9 @@ class App:
         self.plotcanvas=FigureCanvasTkAgg(self.plotfig,side);self.plotcanvas.get_tk_widget().pack(fill='x',side='bottom');self.plotcanvas.mpl_connect('pick_event',self.pick)
         self.status=tk.StringVar();ttk.Label(self.root,textvariable=self.status,anchor='w').pack(fill='x',padx=10);self.draw();self.root.after(50,self.tick)
     def run(self):self.root.mainloop()
+    def open_real(self):
+        from real_mapping import RealMappingWindow
+        RealMappingWindow(self.root, self.lib)
     def setmode(self,m):self.mode=m;self.modevar.set('当前模式：'+m+'　｜　点击地图可添加监控点')
     def invalidate(self):
         if self.sim:self.sim.grid.close()
@@ -189,8 +195,19 @@ class App:
         item=self.sim.history[self.index] if self.sim and self.sim.history else None
         grid=item['grid'] if item else None
         if grid is None:img=np.full((cfg['height'],cfg['width']),.5)
-        else:img=np.where(grid['seen'],1-1/(1+np.exp(-grid['log'])),.5)
+        else:
+            from simulation import close_obstacles
+            from real_mapping import obstacle_boxes
+            real_lib = Path(self.lib).with_name('libmapreal.dll' if Path(self.lib).suffix == '.dll' else 'libmapreal.so')
+            if not hasattr(self, '_close_lib'): self._close_lib = ct.CDLL(str(real_lib))
+            occupied = close_obstacles(grid, self._close_lib, cfg['resolution'])
+            img = np.where(occupied != 0, 0.0, np.where(grid['seen'], 1-1/(1+np.exp(-grid['log'])), .5))
         b.imshow(img,origin='lower',extent=extent,cmap='gray',vmin=0,vmax=1,interpolation='nearest')
+        if grid is not None:
+            boxes=[Rectangle((cfg['origin_x']+x0*cfg['resolution'], cfg['origin_y']+y0*cfg['resolution']),
+                             (x1-x0)*cfg['resolution'], (y1-y0)*cfg['resolution'])
+                   for x0,y0,x1,y1 in obstacle_boxes(occupied == 1)]
+            if boxes:b.add_collection(PatchCollection(boxes,facecolor='none',edgecolor='#ff9e00',linewidth=1.0))
         colors=['#e67e22','#8c44a8','#168c83','#c34444','#718333','#2357aa']
         for i,(x,y) in enumerate(self.monitors):
             wx=cfg['origin_x']+(x+.5)*cfg['resolution'];wy=cfg['origin_y']+(y+.5)*cfg['resolution'];b.plot(wx,wy,'+',color=colors[i%len(colors)],markersize=10,mew=2);b.annotate('M'+str(i+1),(wx,wy),color=colors[i%len(colors)],fontsize=8)

@@ -62,6 +62,7 @@ logs/odometry/
 *.pem
 *.key
 *.vscode/
+!Renesas/.vscode/
 Renesas/TinySLAM/*/build/
 # Do not globally ignore .a / .lib: SDKs may require these libraries.
 # Attach release firmware to GitHub Releases instead of committing it.

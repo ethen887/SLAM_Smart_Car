@@ -124,8 +124,8 @@
     <node id="board.clock.i3cclk.source" option="board.clock.i3cclk.source.disabled"/>
     <node id="board.clock.i3cclk.div" option="board.clock.i3cclk.div.4"/>
     <node id="board.clock.i3cclk.display" option="board.clock.i3cclk.display.value"/>
-    <node id="board.clock.uck.source" option="board.clock.uck.source.disabled"/>
-    <node id="board.clock.uck.div" option="board.clock.uck.div.10"/>
+    <node id="board.clock.uck.source" option="board.clock.uck.source.hoco"/>
+    <node id="board.clock.uck.div" option="board.clock.uck.div.1"/>
     <node id="board.clock.uck.display" option="board.clock.uck.display.value"/>
     <node id="board.clock.u60ck.source" option="board.clock.u60ck.source.disabled"/>
     <node id="board.clock.u60ck.div" option="board.clock.u60ck.div.8"/>
@@ -157,6 +157,7 @@
       <configSetting altId="p209.gpio_mode.gpio_mode_peripheral" configurationId="p209.gpio_mode"/>
       <configSetting altId="p210.gpio_mode.gpio_mode_peripheral" configurationId="p210.gpio_mode"/>
       <configSetting altId="p211.gpio_mode.gpio_mode_peripheral" configurationId="p211.gpio_mode"/>
+      <configSetting altId="p407.gpio_mode.gpio_mode_peripheral" configurationId="p407.gpio_mode"/>
       <configSetting altId="p602.gpio_mode.gpio_mode_peripheral" configurationId="p602.gpio_mode"/>
       <configSetting altId="p603.gpio_mode.gpio_mode_peripheral" configurationId="p603.gpio_mode"/>
       <configSetting altId="p706.gpio_mode.gpio_mode_peripheral" configurationId="p706.gpio_mode"/>
@@ -165,6 +166,8 @@
       <configSetting altId="p715.gpio_mode.gpio_mode_peripheral" configurationId="p715.gpio_mode"/>
       <configSetting altId="p801.gpio_mode.gpio_mode_peripheral" configurationId="p801.gpio_mode"/>
       <configSetting altId="p802.gpio_mode.gpio_mode_peripheral" configurationId="p802.gpio_mode"/>
+      <configSetting altId="p814.gpio_mode.gpio_mode_peripheral" configurationId="p814.gpio_mode"/>
+      <configSetting altId="p815.gpio_mode.gpio_mode_peripheral" configurationId="p815.gpio_mode"/>
       <configSetting altId="sci0.rxd0.p602" configurationId="sci0.rxd0" isUsedByDriver="true" peripheral="SCI0"/>
       <configSetting altId="sci0.txd0.p603" configurationId="sci0.txd0" isUsedByDriver="true" peripheral="SCI0"/>
       <configSetting altId="sci1.rxd1.p706" configurationId="sci1.rxd1" isUsedByDriver="true" peripheral="SCI1"/>
@@ -173,6 +176,9 @@
       <configSetting altId="sci2.txd2.p801" configurationId="sci2.txd2" isUsedByDriver="true" peripheral="SCI2"/>
       <configSetting altId="sci4.rxd4.p715" configurationId="sci4.rxd4" peripheral="SCI4"/>
       <configSetting altId="sci4.txd4.p714" configurationId="sci4.txd4" peripheral="SCI4"/>
+      <configSetting altId="usbfs.usb_dm.p815" configurationId="usbfs.usb_dm" isUsedByDriver="true" peripheral="USB FS"/>
+      <configSetting altId="usbfs.usb_dp.p814" configurationId="usbfs.usb_dp" isUsedByDriver="true" peripheral="USB FS"/>
+      <configSetting altId="usbfs.usb_vbus.p407" configurationId="usbfs.usb_vbus" isUsedByDriver="true" peripheral="USB FS"/>
     </pincfg>
   </raPinConfiguration>
 </raConfiguration>

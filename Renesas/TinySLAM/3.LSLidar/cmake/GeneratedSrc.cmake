@@ -54,14 +54,6 @@ list(REMOVE_ITEM Source_Files ${EXCLUDED_SOURCE_FILES})
 
 
 file(GLOB_RECURSE Companion_Source_Files
-    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.S
-    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.asm
-    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.sx
-    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.msa
     ${CMAKE_CURRENT_SOURCE_DIR}/ra/arm/*.c
     ${CMAKE_CURRENT_SOURCE_DIR}/ra/arm/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ra/arm/*.cc
@@ -69,7 +61,15 @@ file(GLOB_RECURSE Companion_Source_Files
     ${CMAKE_CURRENT_SOURCE_DIR}/ra/arm/*.S
     ${CMAKE_CURRENT_SOURCE_DIR}/ra/arm/*.asm
     ${CMAKE_CURRENT_SOURCE_DIR}/ra/arm/*.sx
-    ${CMAKE_CURRENT_SOURCE_DIR}/ra/arm/*.msa)
+    ${CMAKE_CURRENT_SOURCE_DIR}/ra/arm/*.msa
+    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.cxx
+    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.S
+    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.asm
+    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.sx
+    ${CMAKE_CURRENT_SOURCE_DIR}/ra/aws/*.msa)
 # Exclude files from source build
 list(REMOVE_ITEM Source_Files ${EXCLUDED_SOURCE_FILES})
 
@@ -104,6 +104,7 @@ target_include_directories(${PROJECT_NAME}.elf
     ${CMAKE_CURRENT_SOURCE_DIR}/ra/fsp/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/ra/fsp/inc/api
     ${CMAKE_CURRENT_SOURCE_DIR}/ra/fsp/inc/instances
+    ${CMAKE_CURRENT_SOURCE_DIR}/ra/fsp/src/r_usb_basic/src/driver/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/ra/fsp/src/rm_freertos_port
     ${CMAKE_CURRENT_SOURCE_DIR}/ra_cfg/aws
     ${CMAKE_CURRENT_SOURCE_DIR}/ra_cfg/fsp_cfg

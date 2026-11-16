@@ -1,3 +1,12 @@
 {
-    "cmake.sourceDirectory": "C:/aWorkspace/project-ra8p1/SLAM_Smart_Car/Renesas/micro_ROS_project"
+    "cmake.sourceDirectory": "${workspaceFolder}/TinySLAM/3.LSLidar",
+    "cmake.buildDirectory": "${workspaceFolder}/TinySLAM/3.LSLidar/build/${buildType}",
+    "cmake.useCMakePresets": "never",
+    "cmake.preferredGenerators": ["Ninja"],
+    "cmake.configureSettings": {
+        "CMAKE_TOOLCHAIN_FILE": "${workspaceFolder}/TinySLAM/3.LSLidar/cmake/gcc.cmake",
+        "ARM_TOOLCHAIN_PATH": "${env:ARM_GCC_TOOLCHAIN_PATH}",
+        "RENESAS_IDE": "e2studio"
+    },
+    "cmake.copyCompileCommands": "${workspaceFolder}/TinySLAM/3.LSLidar/compile_commands.json"
 }

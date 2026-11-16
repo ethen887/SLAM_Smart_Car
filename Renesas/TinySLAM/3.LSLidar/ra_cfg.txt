@@ -311,8 +311,8 @@ FSP Configuration
     LCDCLK Div /2
     I3CCLK Disabled
     I3CCLK Div /4
-    USBCLK Disabled
-    USBCLK Div /10
+    USBCLK Src: HOCO
+    USBCLK Div /1
     USB60CLK Disabled
     USB60CLK Div /8
     OCTACLK Disabled
@@ -402,7 +402,7 @@ FSP Configuration
       P404 J13 - - - - Disabled - - "ADC1(Digital): AD1FLAG1; ESWM_GMII/MII: ET0_WOL; ESWM_RGMII0: ET0_WOL; ESWM_RMII0: ET0_WOL; GPT3: GTIOC3B; IRQ: IRQ15-DS; RTC: RTCIC2; SCI1: CTS1; SDHI1: SD1DAT2; SSIE0: SSILRCK0" - None - - 
       P405 G12 - - - - Disabled - - "AGT1: AGTIO1; CEU: VIO_D2; ESWM_GMII/MII0: ET0_RX_DV; ESWM_RGMII0: RGMII0_RX_CTL; ESWM_RMII0: RMII0_CRS_DV; GPT1: GTIOC1A; IRQ: IRQ30; SCI2: DE2; SCI2: SCK2; SDHI1: SD1DAT3; SSIE0: SSITXD0" - None - - 
       P406 F14 - - - - Disabled - - "CEU: VIO_D3; ESWM_GMII/MII0: ET0_RXD3; ESWM_RGMII0: RGMII0_RXD3; GPT1: GTIOC1B; IRQ: IRQ31; SCI2: TXD2; SDHI1: SD1CD; SPI0: SSLA3; SSIE0: SSIRXD0" - None - - 
-      P407 R17 - - - - Disabled - - "ADC0(Digital): ADTRG0; AGT0: AGTIO0; BUS: CS6; ESWM_GMII/MII: GPTP_PTPOUT3; ESWM_RGMII: GPTP_PTPOUT3; ESWM_RMII: GPTP_PTPOUT3; GPT10: GTIOC10B; IIC0: SDA0; IRQ: IRQ22; RTC: RTCOUT; SCI1: DE1; SCI1: SCK1; USB FS: USB_VBUS; USB HS: USBHS_VBUSEN" - None - - 
+      P407 R17 "USB FS_USB_VBUS" - L None "Peripheral mode" - - "ADC0(Digital): ADTRG0; AGT0: AGTIO0; BUS: CS6; ESWM_GMII/MII: GPTP_PTPOUT3; ESWM_RGMII: GPTP_PTPOUT3; ESWM_RMII: GPTP_PTPOUT3; GPT10: GTIOC10B; IIC0: SDA0; IRQ: IRQ22; RTC: RTCOUT; SCI1: DE1; SCI1: SCK1; USB FS: USB_VBUS; USB HS: USBHS_VBUSEN" - IO - - 
       P408 M15 - - - - Disabled - - "ADC(Digital): ADSYNC; BUS: A17; ESWM_GMII/MII: GPTP_PTPOUT2; ESWM_RGMII: GPTP_PTPOUT2; ESWM_RMII: GPTP_PTPOUT2; GPT10: GTIOC10A; GPT_OPS: GTOWLO; IIC0: SCL0; IRQ: IRQ7; SCI3: RXD3; ULPT0: ULPTOB0; USB FS: USB_VBUSEN; USB HS: USBHS_VBUS" - None - - 
       P409 R16 - - - - Disabled - - "ADC1(Digital): ADST1; BUS: A18; ESWM_GMII/MII: GPTP0_CAPTURE; ESWM_RGMII0: GPTP0_CAPTURE; ESWM_RMII0: GPTP0_CAPTURE; GPT_OPS: GTOWUP; IIC0: SDA0; IRQ: IRQ6; SCI3: TXD3; ULPT0: ULPTOA0; USB FS: USB_OVRCURA-DS; USB HS: USBHS_OVRCURA" - None - - 
       P410 K13 - - - - Disabled - - "ADC0(Digital): ADST0; AGT1: AGTOB1; BUS: A19; ESWM_GMII/MII: GPTP0_MATCH; ESWM_RGMII0: GPTP0_MATCH; ESWM_RMII0: GPTP0_MATCH; GPT9: GTIOC9B; GPT_OPS: GTOVLO; IIC0: SCL0; IRQ: IRQ5; SCI3: DE3; SCI3: SCK3; USB FS: USB_OVRCURB-DS; USB HS: USBHS_OVRCURB" - None - - 
@@ -473,8 +473,8 @@ FSP Configuration
       P811 N8 - - - - Disabled - - "GPT10: GTIOC10B; IRQ: IRQ22; PDM1: PDMCLK1; SCI7: CTS7; SDHI1: SD1DAT3; ULPT0: ULPTOB0; USB FS: USB_ID" - None - - 
       P812 P8 - - - - Disabled - - "ADC0: AN022; ADC1: AN022; GPT11: GTIOC11A; IRQ: IRQ23; PDM2: PDMCLK2; SCI7: CTS_RTS7; SCI7: DE7; SDHI1: SD1DAT4; USB FS: USB_EXICEN" - None - - 
       P813 B1 - - - - Disabled - - "CEU: VIO_D13; GPT7: GTIOC7B; GPT_POEGA: GTETRGA; IRQ: IRQ15; PDM2: PDMCLK2; SCI7: DE7; SCI7: SCK7; SDRAM: SDCS" - None - - 
-      P814 U16 - - - - Disabled - - "CANFD0: CRX0; GPT8: GTIOC8B; IRQ: IRQ16; USB FS: USB_DP" - None - - 
-      P815 T16 - - - - Disabled - - "CANFD0: CTX0; GPT8: GTIOC8A; IRQ: IRQ15; USB FS: USB_DM" - None - - 
+      P814 U16 "USB FS_USB_DP" - L None "Peripheral mode" - - "CANFD0: CRX0; GPT8: GTIOC8B; IRQ: IRQ16; USB FS: USB_DP" - IO - - 
+      P815 T16 "USB FS_USB_DM" - L None "Peripheral mode" - - "CANFD0: CTX0; GPT8: GTIOC8A; IRQ: IRQ15; USB FS: USB_DM" - IO - - 
       P902 E9 - - - - Disabled - - "BUS: ALE; CEU: VIO_D1; ETHPHYCLK: ETHPHYCLK; GLCDC: LCD_DATA3; GPT13: GTCPPO13; IRQ: IRQ0; SSIE: AUDIO_CLK" - None - - 
       P903 D9 - - - - Disabled - - "GLCDC: LCD_DATA2; GPT11: GTIOC11A; IRQ: IRQ1" - None - - 
       P904 A16 - - - - Disabled - - "ESWM_GMII/MII1: ET1_RXD4; GLCDC: LCD_DATA8; GPT11: GTIOC11B; IRQ: IRQ2" - None - - 
@@ -650,6 +650,24 @@ FSP Configuration
     Parameter Checking: Default (BSP)
     Linker section to keep DTC vector table: .fsp_dtc_vector_table
     
+  Module "FreeRTOS Heap 4"
+  Module "USB PCDC (r_usb_pcdc)"
+  Module "USB (r_usb_basic)"
+    Parameter Checking: Default (BSP)
+    CL Only Mode: Disabled
+    CPU Bus Access Wait Cycles: 9 cycles
+    Battery Charging: Enabled
+    Power IC Shutdown Polarity: Active High
+    Dedicated Charging Port (DCP) Mode: Disabled
+    Notifications for SET_INTERFACE/SET_FEATURE/CLEAR_FEATURE: Enabled
+    Double Buffering: Enabled
+    Continuous Transfer Mode: Disabled
+    LDO Regulator: Not Supported
+    DMA/DTC Support: DMA Disabled
+    USB Multiport Enable: Disabled
+    USB Compliance Test mode: Disabled
+    USB TPL table name: NULL
+    
   FreeRTOS
     General: Custom FreeRTOSConfig.h: 
     General: Use Preemption: Enabled
@@ -684,8 +702,8 @@ FSP Configuration
     General: Message Buffer Length Type: size_t
     Memory Allocation: Clear Memory on Free: Disabled
     Memory Allocation: Support Static Allocation: Enabled
-    Memory Allocation: Support Dynamic Allocation: Disabled
-    Memory Allocation: Total Heap Size: 1024
+    Memory Allocation: Support Dynamic Allocation: Enabled
+    Memory Allocation: Total Heap Size: 16384
     Memory Allocation: Application Allocated Heap: Disabled
     Stats: Generate Run Time Stats: Disabled
     Timers: Use Timers: Enabled
@@ -734,7 +752,7 @@ FSP Configuration
       General: Data Bits: 8bits
       General: Parity: None
       General: Stop Bits: 1bit
-      Baud: Baud Rate: 921600
+      Baud: Baud Rate: 115200
       Baud: Baud Rate Modulation: Disabled
       Baud: Max Error (%): 2
       Flow Control: CTS/RTS Selection: Hardware RTS
@@ -922,6 +940,7 @@ FSP Configuration
       Offset value (Valid only when address mode is Offset addition): 1
       Source Buffer Size: 1
       
+    Instance "FreeRTOS Heap 4"
   Thread "New Thread"
     Symbol: new_thread0
     Name: New Thread
@@ -931,3 +950,23 @@ FSP Configuration
     Memory Allocation: Static
     Allocate Secure Context: Enable
     
+    Instance "g_pcdc0 USB PCDC (r_usb_pcdc)"
+      Name: g_pcdc0
+      
+      Instance "g_basic0 USB (r_usb_basic)"
+        Name: g_basic0
+        USB Mode: Peri mode
+        USB Speed: Full Speed
+        USB Module Number: USB_IP0 Port
+        USB Descriptor: g_usb_descriptor
+        USB Compliance Callback: NULL
+        USBFS Interrupt Priority: Priority 12
+        USBFS Resume Priority: Priority 12
+        USBFS D0FIFO Interrupt Priority: Priority 12
+        USBFS D1FIFO Interrupt Priority: Priority 12
+        USBHS Interrupt Priority: Priority 12
+        USBHS D0FIFO Interrupt Priority: Priority 12
+        USBHS D1FIFO Interrupt Priority: Priority 12
+        USB Callback: NULL
+        USB Callback Context: NULL
+        
