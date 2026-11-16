@@ -62,7 +62,9 @@ target_sources(${PROJECT_NAME}.elf PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../4.LSL
 # 项目头文件目录，供编译器和 C/C++ 索引使用。
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/../4.LSLidar-stm32/src/Algorithm"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Debug"             # ★ 新增这一行，包含 src 根目录
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Application"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Navigation"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Community"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Device"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Data_Process"

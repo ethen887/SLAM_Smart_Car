@@ -13,11 +13,23 @@ bool UsbSerial_send(const uint8_t *data, uint32_t len) {
 
 bool g_robot_pose_valid;
 float g_robot_x, g_robot_y, g_robot_yaw;
+volatile bool g_timestamp_ready = true;
+static bool pose_available;
+static Stm32PoseDef latest_pose;
+uint64_t gpt_get_timestamp_us(void) { return 1000000U; }
+bool stm32_pose_at(uint64_t time_us, Stm32PoseDef *out) {
+    assert(time_us == 1000000U);
+    if (!pose_available) return false;
+    *out = latest_pose;
+    return true;
+}
 
 int main(void)
 {
     OnePointDef point = {0, 500};
     App_BuildMap_Init();
+    Pose robot = {9, 9, 9};
+    assert(!App_BuildMap_GetRobotPose(&robot) && robot.x == 9);
     assert(g_build_map.c.width == 100 && g_build_map.c.height == 100);
     assert(g_build_map.c.resolution > 0.0599f && g_build_map.c.resolution < 0.0601f);
     assert(g_build_map.c.origin_x == -3.0f && g_build_map.c.origin_y == -3.0f);
@@ -80,11 +92,20 @@ int main(void)
     /* MCU can start while STM32 odometry is already far from its origin. */
     App_BuildMap_Init();
     pose = (Stm32PoseDef){.x = 7.0f, .y = -5.0f, .yaw = 0};
+    g_lidar_offset_x_m = 0.5f;
     App_BuildMap_OnPoints(&point, 1, &pose);
     assert(g_build_map_cells[50 * 100 + 58].log_odds > 0);
     App_BuildMap_PublishSnapshot();
     float x, y;
     memcpy(&x, snapshot + 10, 4); memcpy(&y, snapshot + 14, 4);
     assert(x == 0.0f && y == 0.0f);
+    assert(!App_BuildMap_GetRobotPose(NULL));
+    assert(!App_BuildMap_GetRobotPose(&robot));
+    latest_pose = (Stm32PoseDef){.x = 8.0f, .y = -3.0f, .yaw = 1.0f};
+    pose_available = true;
+    assert(App_BuildMap_GetRobotPose(&robot));
+    assert(robot.x == 0.5f && robot.y == 2.0f && robot.theta == 1.0f);
+    g_timestamp_ready = false;
+    assert(!App_BuildMap_GetRobotPose(&robot));
     puts("real mapping adapter tests passed");
 }

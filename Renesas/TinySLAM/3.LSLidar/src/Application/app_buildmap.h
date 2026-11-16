@@ -20,6 +20,15 @@ void App_BuildMap_Init(void);
 void App_BuildMap_PublishSnapshot(void);
 
 /**
+ * @brief 获取最新可用的车体位姿，坐标与当前建图地图一致。
+ * @param[out] pose x/y 单位为米，theta 为弧度，逆时针为正。
+ * @return 地图原点尚未建立、位姿超过 500 ms 或参数无效时返回 false，且不修改输出。
+ * @note 在 new_thread0_entry 所在线程调用，且应在 Stm32_Data_Process 后调用。
+ *       返回的是里程计估计，尚未进行地图匹配或回环修正。
+ */
+bool App_BuildMap_GetRobotPose(Pose *pose);
+
+/**
  * @brief 接收一包雷达点，并使用近似匹配的里程计更新地图。
  * @param points 雷达解析后的点数组。
  * @param count 数组中有效点的数量。

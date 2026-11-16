@@ -1,6 +1,8 @@
 #include "app_buildmap.h"
 #include "Serial_debug.h"
 #include "usb_serial.h"
+#include "stm32_data_process.h"
+#include "gpt.h"
 #include <math.h>
 #include <string.h>
 
@@ -98,6 +100,17 @@ void App_BuildMap_Init(void)
     memset(g_build_map_obstacles, 0, sizeof(g_build_map_obstacles));
     map_ready = map_init(&g_build_map, &cfg, g_build_map_cells, map_marks,
                          MAP_WIDTH * MAP_HEIGHT) == 0;
+}
+
+bool App_BuildMap_GetRobotPose(Pose *pose)
+{
+    Stm32PoseDef sample;
+    if (pose == NULL || !map_ready || !have_map_pose || !g_timestamp_ready ||
+        !stm32_pose_at(gpt_get_timestamp_us(), &sample) ||
+        !isfinite(sample.x) || !isfinite(sample.y) || !isfinite(sample.yaw)) return false;
+
+    *pose = (Pose){sample.x - map_anchor_x, sample.y - map_anchor_y, sample.yaw};
+    return true;
 }
 
 void App_BuildMap_OnPoints(const OnePointDef *points, uint16_t count, const Stm32PoseDef *sample)
