@@ -1,6 +1,7 @@
 #include "nav_path_recorder.h"
 #include "app_buildmap.h"
 #include <math.h>
+#include <stdlib.h>
 #include <stddef.h>
 
 /**
@@ -26,15 +27,19 @@ static float CalculateDistance(const NavPathPoint *p1, const NavPathPoint *p2)
  */
 void NavPathRecorder_Init(NavPathRecorder_t *recorder, NavPath *path, float min_distance, float min_yaw_change)
 {
-    if (!recorder || !path) return;
-
+    if(!path) return;
+    if(!recorder)
+    {
+        recorder = (NavPathRecorder_t *)malloc(sizeof(NavPathRecorder_t));
+        if(!recorder) return; // 内存分配失败，直接返回
+    }
     recorder->path = path;
-    recorder->last_point = NULL;
+    recorder->last_point = (NavPathPoint){0}; // 初始化为零值
     recorder->is_1st_initialized = false;
     recorder->min_distance = min_distance;
     recorder->min_yaw_change = min_yaw_change;
     NavPath_Clear(path); // 初始化时清空路径
-    recorder->is_recording = true; // 初始化后就认为可以开始记录路径
+    recorder->is_recording = false; // 初始化后就认为可以开始记录路径
 }
 
 /**
@@ -45,9 +50,11 @@ void NavPathRecorder_Init(NavPathRecorder_t *recorder, NavPath *path, float min_
 void NavPathRecorder_Start(NavPathRecorder_t *recorder, const NavPathPoint *initial_pose)
 {
     if (!recorder) return;
-    recorder->last_point->x = initial_pose->x;
-    recorder->last_point->y = initial_pose->y;
-    recorder->last_point->theta = initial_pose->theta;
+    recorder->is_recording = true;       // 开始记录路径
+    // 设置初始位姿为上一个记录点
+    recorder->last_point.x = initial_pose->x;
+    recorder->last_point.y = initial_pose->y;
+    recorder->last_point.theta = initial_pose->theta;
     recorder->is_1st_initialized = true;
 }
 
@@ -60,30 +67,22 @@ void NavPathRecorder_Update(NavPathRecorder_t *recorder, const NavPathPoint *cur
 {
     if (recorder == NULL ||
         recorder->path == NULL ||
-        recorder->last_point == NULL ||
         !recorder->is_recording ||
         current_pose == NULL)
     {
         return;
     }
-    if(recorder->is_initialized == false)
-    {
-        // 初始化时记录第一个路径点
-        NavPath_AddPoint(recorder->path, current_pose->x, current_pose->y, current_pose->theta);
-        recorder->last_point = NavPath_GetPoint(recorder->path, recorder->path->count - 1);
-        recorder->is_initialized = true;
-        return;
-    }
+
     // 计算位置距离
     float distance = CalculateDistance(
-        recorder->last_point,
+        &recorder->last_point,
         current_pose
     );
 
     // 计算最短航向角差，避免跨越 ±PI 时产生错误
     float delta_yaw = atan2f(
-        sinf(current_pose->theta - recorder->last_point->theta),
-        cosf(current_pose->theta - recorder->last_point->theta)
+        sinf(current_pose->theta - recorder->last_point.theta),
+        cosf(current_pose->theta - recorder->last_point.theta)
     );
 
     delta_yaw = fabsf(delta_yaw);
@@ -100,7 +99,7 @@ void NavPathRecorder_Update(NavPathRecorder_t *recorder, const NavPathPoint *cur
         );
 
         // 更新上一个记录点
-        recorder->last_point = NavPath_GetPoint(
+        recorder->last_point = *NavPath_GetPoint(
             recorder->path,
             recorder->path->count - 1
         );
@@ -111,13 +110,11 @@ void NavPathRecorder_Update(NavPathRecorder_t *recorder, const NavPathPoint *cur
  * @brief 停止路径记录器，并确保最后一个路径点被记录。
  * @param recorder 路径记录器指针
  */
-void NavPathRecorder_Stop(NavPathRecorder_t *recorder)
+void NavPathRecorder_Stop(NavPathRecorder_t *recorder, const NavPathPoint *final_pose)
 {
     if (!recorder) return;
     recorder->is_recording = false; // 停止记录路径
     recorder->is_1st_initialized = false; // 重置初始化状态，以便下次启动时重新记录
-    App_BuildMap_GetRobotPose(&current_pose); // 获取小车当前位置信息
-    // 在停止记录时，确保最后一个路径点被记录
-    NavPath_AddPoint(recorder->path, current_pose.x, current_pose.y, current_pose.theta);
-    recorder->last_point = NavPath_GetPoint(recorder->path, recorder->path->count - 1);
+    NavPath_AddPoint(recorder->path, final_pose->x, final_pose->y, final_pose->theta);
+    recorder->last_point = *NavPath_GetPoint(recorder->path, recorder->path->count - 1);
 }
