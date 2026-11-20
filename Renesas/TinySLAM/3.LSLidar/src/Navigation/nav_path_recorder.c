@@ -1,9 +1,8 @@
 #include "nav_path_recorder.h"
-#include "app_buildmap.h"
 #include <math.h>
-#include <stdlib.h>
 #include <stddef.h>
 
+NavPathRecorder_t nav_path_recorder;
 /**
  * @brief 计算两点之间的欧几里得距离
  * @param p1 第一个路径点
@@ -28,11 +27,6 @@ static float CalculateDistance(const NavPathPoint *p1, const NavPathPoint *p2)
 void NavPathRecorder_Init(NavPathRecorder_t *recorder, NavPath *path, float min_distance, float min_yaw_change)
 {
     if(!path) return;
-    if(!recorder)
-    {
-        recorder = (NavPathRecorder_t *)malloc(sizeof(NavPathRecorder_t));
-        if(!recorder) return; // 内存分配失败，直接返回
-    }
     recorder->path = path;
     recorder->last_point = (NavPathPoint){0}; // 初始化为零值
     recorder->is_1st_initialized = false;
@@ -55,6 +49,7 @@ void NavPathRecorder_Start(NavPathRecorder_t *recorder, const NavPathPoint *init
     recorder->last_point.x = initial_pose->x;
     recorder->last_point.y = initial_pose->y;
     recorder->last_point.theta = initial_pose->theta;
+    NavPath_AddPoint(recorder->path, initial_pose->x, initial_pose->y, initial_pose->theta);
     recorder->is_1st_initialized = true;
 }
 
