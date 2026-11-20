@@ -21,4 +21,5 @@ void NavPathRecorder_Init(NavPathRecorder_t *recorder, NavPath *path, float min_
 void NavPathRecorder_Start(NavPathRecorder_t *recorder, const NavPathPoint *initial_pose);
 void NavPathRecorder_Update(NavPathRecorder_t *recorder, const NavPathPoint *current_pose);
 void NavPathRecorder_Stop(NavPathRecorder_t *recorder, const NavPathPoint *final_pose);
+bool NavPathRecorder_ReversePath(NavPath *path);
 #endif

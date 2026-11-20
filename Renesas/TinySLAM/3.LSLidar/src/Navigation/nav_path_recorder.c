@@ -113,3 +113,57 @@ void NavPathRecorder_Stop(NavPathRecorder_t *recorder, const NavPathPoint *final
     NavPath_AddPoint(recorder->path, final_pose->x, final_pose->y, final_pose->theta);
     recorder->last_point = *NavPath_GetPoint(recorder->path, recorder->path->count - 1);
 }
+
+#define NAV_PI_F 3.14159265358979323846f
+
+/**
+ * @brief 将角度归一化到 [-PI, PI]
+ * @param angle 输入角度，单位为弧度
+ * @return 归一化后的角度
+ */
+static float WrapAngle(float angle)
+{
+    return atan2f(sinf(angle), cosf(angle));
+}
+
+/**
+ * @brief 反转路径点顺序，并将航向角旋转 180 度
+ * @param path 待处理路径
+ * @return true 成功，false 失败
+ */
+bool NavPathRecorder_ReversePath(NavPath *path)
+{
+    if (path == NULL ||
+        path->count < 0 ||
+        path->count > NAV_PATH_MAX_POINTS)
+    {
+        return false;
+    }
+
+    // 检查航向角，避免处理无效数据
+    for (int i = 0; i < path->count; i++)
+    {
+        if (!isfinite(path->points[i].theta))
+        {
+            return false;
+        }
+    }
+
+    // 第一步：反转路径点顺序
+    for (int i = 0, j = path->count - 1; i < j; i++, j--)
+    {
+        NavPathPoint temp = path->points[i];
+        path->points[i] = path->points[j];
+        path->points[j] = temp;
+    }
+
+    // 第二步：所有航向角旋转 180 度
+    for (int i = 0; i < path->count; i++)
+    {
+        path->points[i].theta = WrapAngle(
+            path->points[i].theta + NAV_PI_F
+        );
+    }
+
+    return true;
+}
