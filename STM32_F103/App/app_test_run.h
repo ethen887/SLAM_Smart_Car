@@ -47,6 +47,8 @@ typedef struct {
     uint32_t imu_stream;
     int32_t imu_status;
     uint32_t left_state, right_state;
+    // 融合诊断：编码器可信度、打滑标志（0/1）、去重力前向加速度、用于积分的航向增量。
+    float imu_trust, slip, accel_forward, fused_heading_delta;
 } TestRunRecord_t;
 
 typedef struct {

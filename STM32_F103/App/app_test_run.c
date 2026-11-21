@@ -1,4 +1,5 @@
 #include "app_test_run.h"
+#include "app_attitude.h"
 #include "app_move.h"
 #include "app_odometry.h"
 #include "dev_lsm6dsr.h"
@@ -7,7 +8,7 @@
 
 #define RUN_PI 3.14159265359f
 _Static_assert(sizeof(TestRunCommand_t) == 32U, "Run command layout");
-_Static_assert(sizeof(TestRunRecord_t) == 112U, "Run record layout");
+_Static_assert(sizeof(TestRunRecord_t) == 128U, "Run record layout");
 _Static_assert(offsetof(TestRunLog_t, records) == 32U, "Run header layout");
 _Static_assert(sizeof(TestRunConfig_t) == 24U && sizeof(OdometryConfig_t) == 20U, "Run config layout");
 
@@ -218,6 +219,10 @@ void App_TestRun_Log(float dt)
     r->imu_status = lsm6dsr_fifo_debug.status;
     r->left_state = left_motor->state;
     r->right_state = right_motor->state;
+    r->imu_trust = odometry_data.imu_trust;
+    r->slip = odometry_data.slip ? 1.0f : 0.0f;
+    r->accel_forward = attitude_data.accel_forward;
+    r->fused_heading_delta = odometry_data.fused_heading_delta;
     __DMB();
     r->ticket = count + 1U;
     __DMB();

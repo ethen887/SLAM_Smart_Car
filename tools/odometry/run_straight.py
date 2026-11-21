@@ -30,13 +30,13 @@ from capture_imu import (JLinkMemory, BufferReader, SimulatedMemory, Statistics,
                          find_symbol, verify_firmware, read_factory_timing, STATE_NAMES)
 
 HEADER = struct.Struct("<8I")
-RECORD = struct.Struct("<IIqqII10fII4fIiII")
+RECORD = struct.Struct("<IIqqII10fII4fIiIIffff")
 COMMAND = struct.Struct("<III3fII")
 U32 = struct.Struct("<I")
 FIELDS = ("ticket tick_ms left_count right_count state direction dt x y heading linear_speed "
           "angular_speed left_target right_target left_speed right_speed left_pwm right_pwm "
           "distance_delta heading_delta progress_m target_heading imu_stream imu_status "
-          "left_state right_state").split()
+          "left_state right_state imu_trust slip accel_forward fused_heading_delta").split()
 STATES = ("idle", "turn", "settle", "drive", "stopping", "done", "aborted", "error")
 ERRORS = ("none", "bad_command", "heartbeat_lost", "timeout", "L2_estop", "invalid_odometry")
 PID_FIELDS = "kp ki kd kf i_max out_max dead_zone angle_max i_variable_min i_variable_max".split()
@@ -342,7 +342,8 @@ class SimulatedRun:
             row = [count+1, round(self.t*1000), self.left, self.right, self.header[6], 0,
                    0.01, self.x, self.y, self.h, actual_v, actual_w, abs(left), abs(right), abs(actual_left), abs(actual_right),
                    500 if left else 0, 500 if right else 0, actual_v*0.01, actual_w*0.01, self.progress, self.target,
-                   0, 1, 0 if left > 0 else 1 if left < 0 else 3, 0 if right > 0 else 1 if right < 0 else 3]
+                   0, 1, 0 if left > 0 else 1 if left < 0 else 3, 0 if right > 0 else 1 if right < 0 else 3,
+                   1.0, 0.0, 0.0, actual_w*0.01]
             start = count % 32 * RECORD.size
             self.ring[start:start+RECORD.size] = RECORD.pack(*row)
             self.header[4] += 1

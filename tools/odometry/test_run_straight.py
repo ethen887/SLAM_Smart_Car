@@ -29,8 +29,8 @@ class RunTests(unittest.TestCase):
     def test_layout(self):
         self.assertEqual(run.HEADER.size, 32)
         self.assertEqual(run.COMMAND.size, 32)
-        self.assertEqual(run.RECORD.size, 112)
-        self.assertEqual(len(run.FIELDS), 26)
+        self.assertEqual(run.RECORD.size, 128)
+        self.assertEqual(len(run.FIELDS), 30)
 
     def test_partial_hardware_write_is_error(self):
         memory = run.HardwareMemory.__new__(run.HardwareMemory)

@@ -112,9 +112,11 @@ void StartMoveTask(void *argument)
             lsm6dsr_fifo_debug.status >= LSM6DSR_UPDATE_EMPTY &&
             lsm6dsr_fifo_debug.level_after <= 2U, &yaw_delta);
 
-        // 同一周期轮增量和可用的 IMU 航向增量共同积分。
+        // 同一周期轮增量、IMU 航向增量和去重力前向加速度共同积分。
         if (left_motor != NULL && right_motor != NULL) {
-            if (App_Odometry_UpdateImu(left_motor->encoder_count, right_motor->encoder_count, dt, imu_valid, yaw_delta)) {
+            const float accel_forward = attitude_data.accel_forward;
+            if (App_Odometry_UpdateFusion(left_motor->encoder_count, right_motor->encoder_count, dt,
+                                          imu_valid, yaw_delta, accel_forward)) {
                 OdometryData_t sample = App_Odometry_GetData();
                 App_HostComm_PushOdometry(sample_ms, &sample);
             }
