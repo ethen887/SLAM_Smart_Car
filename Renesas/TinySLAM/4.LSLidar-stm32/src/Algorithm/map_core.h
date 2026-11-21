@@ -69,8 +69,8 @@ int map_copy(const Map *map, Cell *out, int count);
 int map_close_obstacles(const Map *map, uint8_t *out, uint8_t *scratch, int capacity);
 int map_close_cells(const Cell *cells, int width, int height, uint8_t *out, uint8_t *scratch, int capacity);
 /* Classify connected occupied cells in place: 1=obstacle, 2=wall candidate.
- * Requires width*height bytes of scratch and uint16_t queue entries. */
+ * Requires width*height bytes of scratch and uint32_t queue entries. */
 int map_classify_walls(uint8_t *mask, int width, int height, float resolution,
-                       uint8_t *scratch, uint16_t *queue, int capacity);
+                       uint8_t *scratch, uint32_t *queue, int capacity);
 
 #endif

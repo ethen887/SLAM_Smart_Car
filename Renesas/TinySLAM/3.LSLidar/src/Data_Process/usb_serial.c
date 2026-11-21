@@ -3,8 +3,8 @@
 #include "queue.h"
 #include <string.h>
 
-#define USB_TX_CAPACITY 8192U
-#define USB_TX_CHUNK 256U
+#define USB_TX_CAPACITY 32768U
+#define USB_TX_CHUNK 2048U
 #define USB_EVENT_COUNT 32U
 #define USB_TASK_STACK_WORDS 2048U
 
@@ -56,7 +56,10 @@ static void handle_event(const usb_event_info_t *event)
         break;
     case USB_STATUS_READ_COMPLETE:
         taskENTER_CRITICAL();
-        if (event->status == FSP_SUCCESS && event->data_size <= sizeof(rx_packet)) {
+        /* CDC is a byte stream. A 10-byte command completing a 64-byte read is
+         * reported as SIZE_SHORT by FSP, and still contains valid bytes. */
+        if ((event->status == FSP_SUCCESS || event->status == FSP_ERR_USB_SIZE_SHORT) &&
+            event->data_size <= sizeof(rx_packet)) {
             for (unsigned i=0;i<event->data_size;i++) {
                 unsigned next=(rx_head+1U)%sizeof(rx_ring);
                 if (next==rx_tail) { rx_fault=true; break; }
@@ -94,6 +97,17 @@ static void handle_event(const usb_event_info_t *event)
     }
 }
 
+static void start_read(void)
+{
+    if (connected && !reading && !rx_fault) {
+        reading = true;
+        if (R_USB_Read(&g_basic0_ctrl, rx_packet, sizeof(rx_packet), USB_CLASS_PCDC) != FSP_SUCCESS) {
+            reading = false;
+            g_usb_serial_errors++;
+        }
+    }
+}
+
 static void usb_worker(void *arg)
 {
     (void) arg;
@@ -111,18 +125,15 @@ static void usb_worker(void *arg)
         usb_event_info_t event;
         while (xQueueReceive(events, &event, 0) == pdPASS) handle_event(&event);
 
-        if (connected && !reading && !rx_fault) {
-            reading=true;
-            if (R_USB_Read(&g_basic0_ctrl,rx_packet,sizeof(rx_packet),USB_CLASS_PCDC)!=FSP_SUCCESS) {
-                reading=false; g_usb_serial_errors++;
-            }
-        }
+        start_read();
         bool start = false;
         taskENTER_CRITICAL();
         if (connected && !writing && used) {
             in_flight = used < USB_TX_CHUNK ? used : USB_TX_CHUNK;
-            for (uint32_t i = 0; i < in_flight; ++i)
-                tx_buffer[i] = ring[(tail + i) % USB_TX_CAPACITY];
+            uint32_t first = USB_TX_CAPACITY - tail;
+            if (first > in_flight) first = in_flight;
+            memcpy(tx_buffer, ring + tail, first);
+            memcpy(tx_buffer + first, ring, in_flight - first);
             writing = true;
             start = true;
         }
@@ -156,10 +167,11 @@ bool UsbSerial_send(const uint8_t *data, uint32_t length)
         taskEXIT_CRITICAL();
         return false;
     }
-    for (uint32_t i = 0; i < length; ++i) {
-        ring[head] = data[i];
-        head = (head + 1U) % USB_TX_CAPACITY;
-    }
+    uint32_t first = USB_TX_CAPACITY - head;
+    if (first > length) first = length;
+    memcpy(ring + head, data, first);
+    memcpy(ring, data + first, length - first);
+    head = (head + length) % USB_TX_CAPACITY;
     used += length;
     taskEXIT_CRITICAL();
     xTaskNotifyGive(worker);
@@ -178,6 +190,14 @@ bool UsbSerial_connected(void)
 {
     taskENTER_CRITICAL();
     bool ok=connected && !rx_fault;
+    taskEXIT_CRITICAL();
+    return ok;
+}
+
+bool UsbSerial_can_send(uint32_t length)
+{
+    taskENTER_CRITICAL();
+    bool ok = connected && length <= USB_TX_CAPACITY - used;
     taskEXIT_CRITICAL();
     return ok;
 }

@@ -5,10 +5,17 @@
 #include "map_core.h"
 #include "link_stm32.h"
 
+#define BUILD_MAP_WIDTH 300
+#define BUILD_MAP_HEIGHT 300
+#define BUILD_MAP_CELLS (BUILD_MAP_WIDTH * BUILD_MAP_HEIGHT)
+#define BUILD_MAP_RESOLUTION 0.04f
+#define BUILD_MAP_ORIGIN_X (-6.0f)
+#define BUILD_MAP_ORIGIN_Y (-6.0f)
+
 /** 地图及统计量保留在 RAM 中，可通过调试器观察。 */
 extern Map g_build_map;
-extern Cell g_build_map_cells[10000];
-extern uint8_t g_build_map_obstacles[10000]; /* 0=other, 1=obstacle, 2=wall candidate. */
+extern Cell g_build_map_cells[BUILD_MAP_CELLS];
+extern uint8_t g_build_map_obstacles[BUILD_MAP_CELLS]; /* 0=other, 1=obstacle, 2=wall candidate. */
 extern uint32_t g_build_map_frames;
 extern uint32_t g_build_map_skipped_no_pose;
 extern uint32_t g_build_map_stream_dropped;

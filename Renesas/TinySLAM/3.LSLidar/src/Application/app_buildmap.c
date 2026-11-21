@@ -6,16 +6,17 @@
 #include <math.h>
 #include <string.h>
 
-#define MAP_WIDTH 100
-#define MAP_HEIGHT 100
+#define MAP_WIDTH BUILD_MAP_WIDTH
+#define MAP_HEIGHT BUILD_MAP_HEIGHT
 #define DEGREE_001_TO_RAD (0.017453292519943295f / 100.0f)
 
 Map g_build_map;
 Cell g_build_map_cells[MAP_WIDTH * MAP_HEIGHT];
+/* Same thread: frame marks and snapshot scratch never overlap in use. */
 static uint8_t map_marks[MAP_WIDTH * MAP_HEIGHT];
 uint8_t g_build_map_obstacles[MAP_WIDTH * MAP_HEIGHT];
-static uint8_t close_scratch[MAP_WIDTH * MAP_HEIGHT];
-static uint16_t wall_queue[MAP_WIDTH * MAP_HEIGHT];
+#define close_scratch map_marks
+static uint32_t wall_queue[MAP_WIDTH * MAP_HEIGHT];
 static Pose last_map_pose;
 static bool have_map_pose;
 static float map_anchor_x, map_anchor_y;
@@ -35,13 +36,15 @@ void App_BuildMap_PublishSnapshot(void)
     enum { HEADER_SIZE = 19, CELLS_SIZE = MAP_WIDTH * MAP_HEIGHT / 4,
            PAYLOAD_SIZE = HEADER_SIZE + CELLS_SIZE };
     static uint8_t packet[4 + PAYLOAD_SIZE + 2];
-    if (!map_ready || map_close_obstacles(&g_build_map, g_build_map_obstacles,
+    /* Do not spend a full-grid pass preparing a snapshot USB cannot accept. */
+    if (!map_ready || !UsbSerial_can_send(sizeof(packet))) return;
+    if (map_close_obstacles(&g_build_map, g_build_map_obstacles,
                                           close_scratch, MAP_WIDTH * MAP_HEIGHT)) return;
     if (map_classify_walls(g_build_map_obstacles, MAP_WIDTH, MAP_HEIGHT, g_build_map.c.resolution,
                            close_scratch, wall_queue, MAP_WIDTH * MAP_HEIGHT)) return;
     packet[0] = 0xa5; packet[1] = 0x5a;
     packet[2] = (uint8_t)PAYLOAD_SIZE; packet[3] = (uint8_t)(PAYLOAD_SIZE >> 8);
-    packet[4] = 'M'; packet[5] = 3;
+    packet[4] = 'M'; packet[5] = 5;
     memcpy(packet + 6, &g_build_map_frames, 4);
     memcpy(packet + 10, &last_map_pose.x, 4);
     memcpy(packet + 14, &last_map_pose.y, 4);
@@ -52,15 +55,19 @@ void App_BuildMap_PublishSnapshot(void)
         unsigned value = g_build_map_obstacles[i] ? (g_build_map_obstacles[i] == 2 ? 3U : 2U) : (g_build_map_cells[i].observed ? 1U : 0U);
         packet[23 + i / 4U] |= (uint8_t)(value << ((i % 4U) * 2U));
     }
+    static const uint16_t crc_table[16] = {
+        0x0000,0xcc01,0xd801,0x1400,0xf001,0x3c00,0x2800,0xe401,
+        0xa001,0x6c00,0x7800,0xb401,0x5000,0x9c01,0x8801,0x4400
+    };
     uint16_t crc = 0xffffU;
     for (unsigned i = 2; i < 4U + PAYLOAD_SIZE; ++i) {
         crc ^= packet[i];
-        for (unsigned bit = 0; bit < 8; ++bit)
-            crc = (uint16_t)((crc >> 1) ^ ((crc & 1U) ? 0xa001U : 0U));
+        crc = (uint16_t)((crc >> 4) ^ crc_table[crc & 15U]);
+        crc = (uint16_t)((crc >> 4) ^ crc_table[crc & 15U]);
     }
     packet[4 + PAYLOAD_SIZE] = (uint8_t)crc;
     packet[5 + PAYLOAD_SIZE] = (uint8_t)(crc >> 8);
-    (void) UsbSerial_send(packet, sizeof(packet));
+    if (!UsbSerial_send(packet, sizeof(packet))) g_build_map_stream_dropped++;
 }
 
 /** @brief 发送与板端地图更新完全相同的位姿和射线，供电脑重放。 */
@@ -89,7 +96,7 @@ static void App_BuildMap_Send(const Pose *pose, const Ray *rays, uint8_t count)
 
 void App_BuildMap_Init(void)
 {
-    const MapConfig cfg = {MAP_WIDTH, MAP_HEIGHT, 0.06f, -3.0f, -3.0f,
+    const MapConfig cfg = {MAP_WIDTH, MAP_HEIGHT, BUILD_MAP_RESOLUTION, BUILD_MAP_ORIGIN_X, BUILD_MAP_ORIGIN_Y,
                            -0.40f, 0.85f, -4.0f, 4.0f};
     g_build_map_frames = 0;
     g_build_map_skipped_no_pose = 0;

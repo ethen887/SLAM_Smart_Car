@@ -5,6 +5,8 @@
 #include <stdint.h>
 
 void UsbSerial_init(void);
+/* Advisory backpressure check; send remains atomic and checks again. */
+bool UsbSerial_can_send(uint32_t length);
 bool UsbSerial_send(const uint8_t *data, uint32_t length);
 
 bool UsbSerial_read(uint8_t *byte);

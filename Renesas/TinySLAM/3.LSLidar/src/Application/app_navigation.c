@@ -17,10 +17,18 @@ static uint8_t drive_frame[18];
 static volatile bool tx_busy;
 static bool tx_ready, prepared;
 static NavigationState resume_state;
-static uint16_t parents[10000], join_cells[10000];
+/* Navigation searches 12 cm nodes, checking collision on the 4 cm map. */
+#define JOIN_WIDTH 100
+#define JOIN_HEIGHT 100
+#define JOIN_RESOLUTION (BUILD_MAP_RESOLUTION * BUILD_MAP_WIDTH / JOIN_WIDTH)
+static uint16_t parents[JOIN_WIDTH * JOIN_HEIGHT], join_cells[JOIN_WIDTH * JOIN_HEIGHT];
 static unsigned join_count;
+#define NAV_BODY_RADIUS 0.15f
+#define NAV_OCCUPIED_LOG_ODDS 1.5f
+#define NAV_LOOKAHEAD 0.20f
+static NavigationError footprint_error(float x, float y);
 static bool blocked(float x, float y);
-static bool prepare_join(Pose pose);
+static NavigationError prepare_join(Pose pose);
 
 static uint16_t crc16(const uint8_t *p, unsigned n)
 {
@@ -71,6 +79,11 @@ static void command(uint8_t cmd, uint64_t now)
     Pose pose;
     if (cmd==NAV_HEARTBEAT) { heartbeat=now; return; }
     last_command=cmd;
+    if (cmd==NAV_MANUAL) {
+        recorder.is_recording=false; join_count=0;
+        g_navigation_state=NAV_IDLE; g_navigation_error=NAV_OK;
+        drive(0,0,0); status(); return;
+    }
     if (cmd==NAV_ESTOP) { halt(NAV_STOPPED,NAV_OK); status(); return; }
     if (cmd!=NAV_RECORD_START && cmd!=NAV_RECORD_END && cmd!=NAV_RUN) return;
     if ((cmd==NAV_RECORD_START && (g_navigation_state==NAV_RUNNING || g_navigation_state==NAV_PAUSED)) ||
@@ -95,64 +108,72 @@ static void command(uint8_t cmd, uint64_t now)
         }
         if (g_navigation_state==NAV_DONE) target=0;
         if (target>=(unsigned)g_nav_path.count) target=0;
-        if (!prepare_join(pose)) { halt(NAV_STOPPED,NAV_OBSTACLE); status(); return; }
+        NavigationError error=prepare_join(pose);
+        if (error!=NAV_OK) { halt(NAV_STOPPED,error); status(); return; }
         g_navigation_state=NAV_RUNNING; heartbeat=now;
     }
     g_navigation_error=NAV_OK; status();
 }
 /* Check swept circular footprint against occupied map cells. Unknown cells are
  * allowed on the demonstrated route; no global replanning is performed. */
-static bool blocked(float x, float y)
+static NavigationError footprint_error(float x, float y)
 {
     Map *m=&g_build_map;
     int cx=(int)floorf((x-m->c.origin_x)/m->c.resolution);
     int cy=(int)floorf((y-m->c.origin_y)/m->c.resolution);
-    int r=(int)ceilf(0.15f/m->c.resolution);
+    int r=(int)ceilf(NAV_BODY_RADIUS/m->c.resolution);
+    NavigationError error=NAV_OK;
     for (int yy=cy-r;yy<=cy+r;yy++) for (int xx=cx-r;xx<=cx+r;xx++) {
         if ((xx-cx)*(xx-cx)+(yy-cy)*(yy-cy)>r*r) continue;
-        if (xx<0 || yy<0 || xx>=m->c.width || yy>=m->c.height) return true;
+        if (xx<0 || yy<0 || xx>=m->c.width || yy>=m->c.height) return NAV_BOUNDARY;
         Cell *c=&m->cells[yy*m->c.width+xx];
-        if (c->observed && c->log_odds>0) return true;
+        /* One fresh hit adds only 0.85: require repeated occupied evidence. */
+        if (c->observed && c->log_odds>=NAV_OCCUPIED_LOG_ODDS) error=NAV_OBSTACLE;
     }
-    return false;
+    return error;
 }
+static bool blocked(float x, float y) { return footprint_error(x,y)!=NAV_OK; }
 /* Join the nearest remaining route point using a four-neighbour map search.
  * The recorded corridor can contain unknown cells, so only occupied cells and
  * the map boundary block travel. Parent/queue arrays are bounded to 100x100. */
-static bool prepare_join(Pose p)
+static NavigationError prepare_join(Pose p)
 {
     Map *m=&g_build_map;
-    if (!m->cells || m->c.width!=100 || m->c.height!=100 || blocked(p.x,p.y)) return false;
+    if (!m->cells || m->c.width!=BUILD_MAP_WIDTH || m->c.height!=BUILD_MAP_HEIGHT) return NAV_BAD_STATE;
+    NavigationError error=footprint_error(p.x,p.y);
+    if (error!=NAV_OK) return error;
     float best=INFINITY;
     for (unsigned i=target;i<(unsigned)g_nav_path.count;i++) {
         float d=hypotf(p.x-g_nav_path.points[i].x,p.y-g_nav_path.points[i].y);
         if (d<best) { best=d; target=i; }
     }
-    int sx=(int)floorf((p.x-m->c.origin_x)/m->c.resolution);
-    int sy=(int)floorf((p.y-m->c.origin_y)/m->c.resolution);
+    int sx=(int)floorf((p.x-m->c.origin_x)/JOIN_RESOLUTION);
+    int sy=(int)floorf((p.y-m->c.origin_y)/JOIN_RESOLUTION);
     NavPathPoint t=g_nav_path.points[target];
-    int gx=(int)floorf((t.x-m->c.origin_x)/m->c.resolution);
-    int gy=(int)floorf((t.y-m->c.origin_y)/m->c.resolution);
-    if (gx<0 || gy<0 || gx>=100 || gy>=100 || blocked(t.x,t.y)) return false;
-    unsigned start=(unsigned)(sy*100+sx), goal=(unsigned)(gy*100+gx);
+    int gx=(int)floorf((t.x-m->c.origin_x)/JOIN_RESOLUTION);
+    int gy=(int)floorf((t.y-m->c.origin_y)/JOIN_RESOLUTION);
+    if (gx<0 || gy<0 || gx>=JOIN_WIDTH || gy>=JOIN_HEIGHT) return NAV_BOUNDARY;
+    error=footprint_error(t.x,t.y);
+    if (error!=NAV_OK) return error;
+    unsigned start=(unsigned)(sy*JOIN_WIDTH+sx), goal=(unsigned)(gy*JOIN_WIDTH+gx);
     memset(parents,0xff,sizeof(parents));
     unsigned head=0,tail=0; join_cells[tail++]=(uint16_t)start; parents[start]=(uint16_t)start;
     while (head<tail && parents[goal]==0xffff) {
-        unsigned cell=join_cells[head++]; int x=(int)(cell%100),y=(int)(cell/100);
+        unsigned cell=join_cells[head++]; int x=(int)(cell%JOIN_WIDTH),y=(int)(cell/JOIN_WIDTH);
         const int dx[4]={1,-1,0,0},dy[4]={0,0,1,-1};
         for (unsigned k=0;k<4;k++) {
             int nx=x+dx[k],ny=y+dy[k];
-            if (nx<0 || ny<0 || nx>=100 || ny>=100) continue;
-            unsigned next=(unsigned)(ny*100+nx);
-            if (parents[next]!=0xffff || blocked(m->c.origin_x+((float)nx+0.5f)*m->c.resolution,
-                                                m->c.origin_y+((float)ny+0.5f)*m->c.resolution)) continue;
+            if (nx<0 || ny<0 || nx>=JOIN_WIDTH || ny>=JOIN_HEIGHT) continue;
+            unsigned next=(unsigned)(ny*JOIN_WIDTH+nx);
+            if (parents[next]!=0xffff || blocked(m->c.origin_x+((float)nx+0.5f)*JOIN_RESOLUTION,
+                                                m->c.origin_y+((float)ny+0.5f)*JOIN_RESOLUTION)) continue;
             parents[next]=(uint16_t)cell; join_cells[tail++]=(uint16_t)next;
         }
     }
-    if (parents[goal]==0xffff) return false;
+    if (parents[goal]==0xffff) return NAV_NO_ROUTE;
     join_count=0;
     for (unsigned c=goal;c!=start;c=parents[c]) join_cells[join_count++]=(uint16_t)c;
-    return true;
+    return NAV_OK;
 }
 static void follow(Pose p)
 {
@@ -160,8 +181,8 @@ static void follow(Pose p)
     NavPathPoint *t=&g_nav_path.points[target];
     if (join_count) {
         unsigned c=join_cells[join_count-1];
-        intermediate=(NavPathPoint){g_build_map.c.origin_x+((float)(c%100)+0.5f)*g_build_map.c.resolution,
-            g_build_map.c.origin_y+((float)(c/100)+0.5f)*g_build_map.c.resolution,p.theta};
+        intermediate=(NavPathPoint){g_build_map.c.origin_x+((float)(c%JOIN_WIDTH)+0.5f)*JOIN_RESOLUTION,
+            g_build_map.c.origin_y+((float)(c/JOIN_WIDTH)+0.5f)*JOIN_RESOLUTION,p.theta};
         t=&intermediate;
         if (hypotf(t->x-p.x,t->y-p.y)<0.045f) { --join_count; drive(1,0,0); return; }
     }
@@ -171,13 +192,14 @@ static void follow(Pose p)
         if (++target>=(unsigned)g_nav_path.count) { halt(NAV_DONE,NAV_OK); return; }
         drive(1,0,0); return;
     }
-    float v=fabsf(angle)>0.25f?0:fminf(0.10f,d);
+    /* Once position is reached, align in place without creeping forward. */
+    float v=(d<=0.035f || fabsf(angle)>0.25f)?0:fminf(0.13f,1.3f*d);
     float w=limit(2.0f*angle,0.6f);
     for (unsigned i=0;i<=5;i++) {
-        float s=0.04f*(float)i;
-        if (blocked(p.x+s*cosf(p.theta),p.y+s*sinf(p.theta))) {
-            halt(NAV_STOPPED,NAV_OBSTACLE); return;
-        }
+        /* Never probe beyond this waypoint: it may be the turn-around point. */
+        float s=fminf(NAV_LOOKAHEAD,d)*(float)i/5.0f;
+        NavigationError error=footprint_error(p.x+s*cosf(p.theta),p.y+s*sinf(p.theta));
+        if (error!=NAV_OK) { halt(NAV_STOPPED,error); return; }
         if (v<=0.0f) break;
     }
     if (!drive(1,v,w) && !tx_busy) {
@@ -213,7 +235,10 @@ void App_Navigation_Poll(void)
         Pose p;
         if (App_BuildMap_GetRobotPose(&p)) {
             g_navigation_state=resume_state; g_navigation_error=NAV_OK;
-            if (resume_state==NAV_RUNNING && !prepare_join(p)) halt(NAV_STOPPED,NAV_OBSTACLE);
+            if (resume_state==NAV_RUNNING) {
+                NavigationError error=prepare_join(p);
+                if (error!=NAV_OK) halt(NAV_STOPPED,error);
+            }
         }
     }
     if (g_navigation_state==NAV_RUNNING || g_navigation_state==NAV_RECORDING) {
@@ -231,6 +256,6 @@ void App_Navigation_Poll(void)
     }
     if (g_navigation_state==NAV_STOPPED || g_navigation_state==NAV_DONE ||
         g_navigation_state==NAV_ERROR || g_navigation_state==NAV_READY || g_navigation_state==NAV_PAUSED) drive(2,0,0);
-    if (g_navigation_state==NAV_RECORDING) drive(0,0,0);
+    if (g_navigation_state==NAV_RECORDING || g_navigation_state==NAV_IDLE) drive(0,0,0);
     if (now-last_status>=500000) { last_status=now; status(); }
 }

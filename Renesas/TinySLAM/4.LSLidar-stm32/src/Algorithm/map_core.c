@@ -90,8 +90,8 @@ int map_update(Map *map, Pose pose, const Ray *rays, int count, uint32_t frame)
     if (!map || !map->cells || !map->marks || count < 0 || (!rays && count) ||
         !isfinite(pose.x) || !isfinite(pose.y) || !isfinite(pose.theta)) return -1;
     MapConfig cfg = map->c;
-    int n = cfg.width * cfg.height;
-    memset(map->marks, 0, (size_t)n);
+    memset(map->marks, 0, (size_t)cfg.width * (size_t)cfg.height);
+    int min_x = cfg.width, min_y = cfg.height, max_x = -1, max_y = -1;
 
     for (int i = 0; i < count; i++) {
         Ray ray = rays[i];
@@ -111,6 +111,15 @@ int map_update(Map *map, Pose pose, const Ray *rays, int count, uint32_t frame)
 
         int x = (int)floorf(x0), y = (int)floorf(y0);
         int ex = (int)floorf(x1), ey = (int)floorf(y1);
+        /* Only cells inside the clipped rays' bounds can have evidence. */
+        if (x < min_x) min_x = x;
+        if (ex < min_x) min_x = ex;
+        if (x > max_x) max_x = x;
+        if (ex > max_x) max_x = ex;
+        if (y < min_y) min_y = y;
+        if (ey < min_y) min_y = ey;
+        if (y > max_y) max_y = y;
+        if (ey > max_y) max_y = ey;
         int dx = abs(ex - x), sx = x < ex ? 1 : -1;
         int dy = -abs(ey - y), sy = y < ey ? 1 : -1, err = dx + dy;
         for (;;) {
@@ -123,7 +132,8 @@ int map_update(Map *map, Pose pose, const Ray *rays, int count, uint32_t frame)
             if (twice_error <= dx) { err += dx; y += sy; }
         }
     }
-    for (int i = 0; i < n; i++) {
+    for (int y = min_y; y <= max_y; y++) for (int x = min_x; x <= max_x; x++) {
+        int i = y * cfg.width + x;
         if (map->marks[i]) {
             Cell *cell = &map->cells[i];
             cell->log_odds += map->marks[i] == 2U ? cfg.occupied_delta : cfg.free_delta;
@@ -188,24 +198,24 @@ int map_close_cells(const Cell *cells, int w, int h, uint8_t *out, uint8_t *scra
 }
 
 int map_classify_walls(uint8_t *mask, int w, int h, float resolution,
-                       uint8_t *visited, uint16_t *queue, int capacity)
+                       uint8_t *visited, uint32_t *queue, int capacity)
 {
-    if (!mask || !visited || !queue || w <= 0 || h <= 0 || w > 255 || h > 255 ||
+    if (!mask || !visited || !queue || w <= 0 || h <= 0 || w > 10000 || h > 10000 ||
         capacity < w * h || !isfinite(resolution) || resolution <= 0) return -1;
     memset(visited, 0, (size_t)w * (size_t)h);
     for (int start = 0; start < w*h; ++start) {
         if (!mask[start] || visited[start]) continue;
-        int head = 0, count = 0; queue[count++] = (uint16_t)start; visited[start] = 1;
+        int head = 0, count = 0; queue[count++] = (uint32_t)start; visited[start] = 1;
         float sx=0, sy=0, sxx=0, syy=0, sxy=0;
         while (head < count) {
-            int i = queue[head++], x = i % w, y = i / w;
+            int i = (int)queue[head++], x = i % w, y = i / w;
             float fx=(float)x, fy=(float)y;
             sx += fx; sy += fy; sxx += fx*fx; syy += fy*fy; sxy += fx*fy;
             for (int dy=-1; dy<=1; ++dy) for (int dx=-1; dx<=1; ++dx) {
                 int xx=x+dx, yy=y+dy;
                 if (xx<0 || xx>=w || yy<0 || yy>=h) continue;
                 int j=yy*w+xx;
-                if (mask[j] && !visited[j]) { visited[j]=1; queue[count++]=(uint16_t)j; }
+                if (mask[j] && !visited[j]) { visited[j]=1; queue[count++]=(uint32_t)j; }
             }
         }
         if (count < 5) continue;
@@ -216,7 +226,7 @@ int map_classify_walls(uint8_t *mask, int w, int h, float resolution,
         float angle=0.5f*atan2f(2*xy,xx-yy), c=cosf(angle), s=sinf(angle);
         float lo=1e30f, hi=-1e30f;
         for (int k=0;k<count;++k) {
-            int i=queue[k]; float projection=(float)(i%w)*c+(float)(i/w)*s;
+            int i=(int)queue[k]; float projection=(float)(i%w)*c+(float)(i/w)*s;
             if (projection<lo) lo=projection;
             if (projection>hi) hi=projection;
         }

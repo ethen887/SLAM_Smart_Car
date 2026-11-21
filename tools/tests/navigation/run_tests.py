@@ -12,6 +12,12 @@ with tempfile.TemporaryDirectory(prefix='navigation-tests-') as temporary:
                         root/'Renesas/TinySLAM/4.LSLidar-stm32/src/Algorithm'],
          [root/'tools/tests/navigation/test_navigation.c', ra/'Navigation/nav_path.c',
           ra/'Navigation/nav_path_recorder.c']),
+        ('usb_serial', [root/'tools/tests/usb_serial', ra/'Data_Process'],
+         [root/'tools/tests/usb_serial/test_usb_serial.c']),
+        ('real_mapping', [root/'tools/tests/real_mapping', root/'tools/tests/navigation', ra/'Application', ra/'Data_Process', ra/'Device', ra,
+                          root/'Renesas/TinySLAM/4.LSLidar-stm32/src/Algorithm'],
+         [root/'tools/tests/real_mapping/test_real_mapping.c', ra/'Application/app_buildmap.c',
+          root/'Renesas/TinySLAM/4.LSLidar-stm32/src/Algorithm/map_core.c']),
         ('motion', [root/'STM32_F103/App', root/'tools/tests/host_comm'],
          [root/'tools/tests/navigation/test_motion.c']),
     ):
