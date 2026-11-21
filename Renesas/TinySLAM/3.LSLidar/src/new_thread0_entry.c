@@ -8,6 +8,7 @@
 #include "Serial_debug.h" 
 #include "usb_serial.h"
 #include "app_buildmap.h"
+#include "app_navigation.h"
 #include "gpt.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -44,12 +45,14 @@ void new_thread0_entry(void *pvParameters)
         Serial_debug_send((const uint8_t *)"STM32 Init OK!\r\n", 16);
     }
 
+    App_Navigation_Init();
+    unsigned map_divider = 0;
     const char *startup_msg = "\r\n=== System Started (Lidar + STM32 Merged) ===\r\n";
     Serial_debug_send((const uint8_t *)startup_msg, strlen(startup_msg));
 
     TickType_t last_wake = xTaskGetTickCount();
     for (;;) {
-        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(200));
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(20));
         uint64_t started_us = gpt_get_timestamp_us();
         taskENTER_CRITICAL();
         uint32_t stm32_snapshot = stm32_data_snapshot();
@@ -61,7 +64,11 @@ void new_thread0_entry(void *pvParameters)
         Stm32_Data_Process(stm32_snapshot);
         LiDar_Data_Process(lidar_snapshot);
         Serial_debug_poll();
-        App_BuildMap_PublishSnapshot();
+        App_Navigation_Poll();
+        if (++map_divider >= 10) {
+            map_divider = 0;
+            App_BuildMap_PublishSnapshot();
+        }
 
         // ==========================================================
         // 2. 融合发数据
@@ -72,7 +79,7 @@ void new_thread0_entry(void *pvParameters)
         uint64_t elapsed_us = gpt_get_timestamp_us() - started_us;
         g_mapping_last_us = elapsed_us;
         if (elapsed_us > g_mapping_max_us) g_mapping_max_us = elapsed_us;
-        if (elapsed_us > 200000U) g_mapping_overruns++;
+        if (elapsed_us > 20000U) g_mapping_overruns++;
         g_mapping_cycles++;
 
     }

@@ -7,6 +7,9 @@
 void UsbSerial_init(void);
 bool UsbSerial_send(const uint8_t *data, uint32_t length);
 
+bool UsbSerial_read(uint8_t *byte);
+bool UsbSerial_connected(void);
+
 /* Debugger-visible counters, including frames discarded while disconnected. */
 extern volatile uint32_t g_usb_serial_dropped;
 extern volatile uint32_t g_usb_serial_errors;

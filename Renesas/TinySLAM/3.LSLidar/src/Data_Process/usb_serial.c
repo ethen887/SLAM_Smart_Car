@@ -19,7 +19,10 @@ static usb_pcdc_linecoding_t line_coding = {115200U, 0U, 0U, 8U, 0U};
 static uint8_t ring[USB_TX_CAPACITY];
 static uint8_t tx_buffer[USB_TX_CHUNK];
 static uint32_t head, tail, used, in_flight;
-static bool connected, writing;
+static bool connected, writing, reading;
+static uint8_t rx_packet[64], rx_ring[256];
+static unsigned rx_head, rx_tail;
+static volatile bool rx_fault;
 volatile uint32_t g_usb_serial_dropped;
 volatile uint32_t g_usb_serial_errors;
 volatile uint32_t g_usb_serial_event_dropped;
@@ -40,13 +43,27 @@ static void handle_event(const usb_event_info_t *event)
     case USB_STATUS_CONFIGURED:
         taskENTER_CRITICAL();
         connected = true;
+        reading = false; rx_fault = false; rx_head = rx_tail = 0;
         taskEXIT_CRITICAL();
         break;
     case USB_STATUS_DETACH:
         taskENTER_CRITICAL();
         connected = false;
+        reading = false; rx_head = rx_tail = 0;
         head = tail = used = in_flight = 0;
         writing = false;
+        taskEXIT_CRITICAL();
+        break;
+    case USB_STATUS_READ_COMPLETE:
+        taskENTER_CRITICAL();
+        if (event->status == FSP_SUCCESS && event->data_size <= sizeof(rx_packet)) {
+            for (unsigned i=0;i<event->data_size;i++) {
+                unsigned next=(rx_head+1U)%sizeof(rx_ring);
+                if (next==rx_tail) { rx_fault=true; break; }
+                rx_ring[rx_head]=rx_packet[i]; rx_head=next;
+            }
+        } else rx_fault=true;
+        reading=false;
         taskEXIT_CRITICAL();
         break;
     case USB_STATUS_WRITE_COMPLETE:
@@ -94,6 +111,12 @@ static void usb_worker(void *arg)
         usb_event_info_t event;
         while (xQueueReceive(events, &event, 0) == pdPASS) handle_event(&event);
 
+        if (connected && !reading && !rx_fault) {
+            reading=true;
+            if (R_USB_Read(&g_basic0_ctrl,rx_packet,sizeof(rx_packet),USB_CLASS_PCDC)!=FSP_SUCCESS) {
+                reading=false; g_usb_serial_errors++;
+            }
+        }
         bool start = false;
         taskENTER_CRITICAL();
         if (connected && !writing && used) {
@@ -141,4 +164,20 @@ bool UsbSerial_send(const uint8_t *data, uint32_t length)
     taskEXIT_CRITICAL();
     xTaskNotifyGive(worker);
     return true;
+}
+
+bool UsbSerial_read(uint8_t *byte)
+{
+    taskENTER_CRITICAL();
+    bool available=byte && !rx_fault && rx_tail!=rx_head;
+    if (available) { *byte=rx_ring[rx_tail]; rx_tail=(rx_tail+1U)%sizeof(rx_ring); }
+    taskEXIT_CRITICAL();
+    return available;
+}
+bool UsbSerial_connected(void)
+{
+    taskENTER_CRITICAL();
+    bool ok=connected && !rx_fault;
+    taskEXIT_CRITICAL();
+    return ok;
 }

@@ -13,3 +13,30 @@ dump binary memory map.bin &g_build_map_cells[0] &g_build_map_cells[10000]
 将文件拷贝到电脑后，在仓库根目录运行 `python tools/mapping/render_map_dump.py map.bin map.pgm`；灰色未知、白色空闲、黑色占据。脚本假设 little-endian ARM 的 `Cell` 大小为 12 字节，调试器可用 `p sizeof(Cell)` 验证。图上方向为 X 向右、Y 向上。
 
 雷达和位姿解析器保留跨 DMA 块的不完整帧；队列覆盖及传感器数据质量仍需在硬件验证。无匹配位姿时地图不更新；这不是具有回环校正的 SLAM。
+
+
+## USB 导航录制与返程
+
+瑞萨与 STM32 必须同时烧录本次固件。运行 `python Renesas/MapBuild_Demo/run_demo.py`，打开“真实数据建图”，连接瑞萨 USB 串口。鼠标放在 Navigation 上展开 Start/End：Start 记录当前自动运行终点，人工带车移动并采样；End 补录当前位置作为自动运行起点，倒序路径并旋转目标航向。总体 Start 启动返程，Stop 急停。路线仅保存于 RAM，重启清空。板端确认、状态、点数和错误在导航状态栏显示。
+
+总体 Start 支持当前位置启动：在地图内寻找最近的剩余路线点，以四邻域搜索生成接入路径，再逐点返回。完成后再次 Start 可从当前位置重新接入路线。当前位置或目标处于占据区域、越界或无连通通路时停车提示。自动跟踪遇到障碍停车，需主动 Start 重试，不执行绕障重规划。未知栅格允许通行，地图可用范围仍为 -3 至 +3 米。规划及运动检查使用原始占据证据，不依赖电脑绘图。
+
+默认录制间距 0.05 m、转角 0.15 rad；前进上限 0.10 m/s、角速度上限 0.6 rad/s；车体检查半径 0.15 m，前方检查长度 0.20 m。上述为 app_navigation.c 中的初始参数，应根据实际车体尺寸和制动距离调整。路径容量 1000 点，预留终点；满时进入错误状态，需要重新录制。
+
+电脑每 200 ms 发送心跳，板端超过 1 s 未收到心跳或 USB 脱离时暂停；位姿接口超过 500 ms 没有可用数据时暂停。恢复通信和有效位姿后自动继续，自动运行会重新生成接入路径；主动 Stop 保持停止，Start 后恢复。主动“断开”或关闭真实运行窗口会尝试发送 Stop，物理拔线则按失联暂停处理。录制时释放给原手柄控制，自动运行/急停由 STM32 导航接口接管，不被空闲摇杆覆盖。STM32 超过 350 ms 未收到运动命令时制动，恢复收到新命令后继续。
+
+内部 USB 帧使用 A5 5A、uint16 小端负载长度、负载、CRC16/MODBUS（长度字段至负载末尾）。命令负载为 `N,1,command,sequence`，command 1/2/3/4/5 为录制开始/结束/运行/急停/心跳。状态负载为 `N,1,command,sequence,state,error,count:uint16,target:uint16`。状态周期 500 ms，操作后也发送确认。电脑无需手动构造协议。板间沿用 AA 55 串口帧，类型 0x20，负载 mode:uint8、v:float32、w:float32，mode 0 释放手柄、1 控制运动、2 制动；其 CRC 和帧尾沿用现有 STM32 协议。
+
+验证命令：
+
+```powershell
+python tools/tests/navigation/run_tests.py
+Push-Location Renesas/MapBuild_Demo
+python -m unittest discover -s tests -p test_real_mapping.py
+python -m unittest discover -s tests -p test_navigation_ui.py
+Pop-Location
+cmake --build Renesas/TinySLAM/3.LSLidar/build/Debug
+cmake --build STM32_F103/build/Debug
+```
+
+主机闭环测试使用模拟位姿和电机输出，覆盖录制反转、偏离起点后接入路线、完成、急停锁存、位姿及通信恢复、容量和错误 CRC；STM32 测试覆盖轮速换算、命令超时、制动与手动控制释放。界面测试创建 Tk 窗口验证悬停菜单、按钮与状态反馈。真实 USB 收发、实际轮向、车体间隙和跟踪精度仍需板上联调；当前定位依赖里程计，没有地图匹配或回环修正。

@@ -9,6 +9,7 @@
 #include "app_odometry.h"
 #include "app_host_comm.h"
 #include "app_test_run.h"
+#include "app_navigation_motion.h"
 #include "tim.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -133,7 +134,7 @@ void StartMoveTask(void *argument)
         const bool emergency_stop = ps2_data.valid &&
             (ps2_data.mode == 0x73U || ps2_data.mode == 0x79U) &&
             (ps2_data.buttons & PS2_BTN_L2) == 0U;
-        if (!App_TestRun_Update(dt, emergency_stop)) {
+        if (!App_NavigationMotion_Update() && !App_TestRun_Update(dt, emergency_stop)) {
             if (!valid || (uint32_t)(now - last_valid_tick) >= timeout_ticks) {
                 App_Move_Stop();
             }

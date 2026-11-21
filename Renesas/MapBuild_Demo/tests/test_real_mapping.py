@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 import numpy as np
 from matplotlib.figure import Figure
-from real_mapping import RealMappingWindow, StreamParser, crc16, map_rays, relative_pose, real_map_settings, obstacle_boxes
+from real_mapping import RealMappingWindow, StreamParser, crc16, map_rays, relative_pose, real_map_settings, obstacle_boxes, navigation_command
 from simulation import Grid, defaults
 from run_demo import build
 
@@ -17,6 +17,29 @@ def packet(seq=1):
 
 
 class RealStreamTest(unittest.TestCase):
+    def test_navigation_status_interleaves_map_and_resynchronizes(self):
+        payload = b'N\x01' + struct.pack('<BBBBHH', 3, 42, 7, 2, 123, 10)
+        body = struct.pack('<H', len(payload)) + payload
+        status = b'\xa5\x5a' + body + struct.pack('<H', crc16(body))
+        bad = bytearray(status); bad[-1] ^= 1
+        parser = StreamParser()
+        self.assertEqual(parser.feed(status[:5]), [])
+        rows = parser.feed(status[5:] + bytes(bad) + packet(99))
+        self.assertEqual(rows[0], ('navigation', 3, 42, 7, 2, 123, 10))
+        self.assertEqual(rows[1][0], 99)
+        self.assertGreater(parser.bad, 0)
+
+    def test_command_write_requires_board_confirmation(self):
+        frame = navigation_command(4, 255)
+        self.assertEqual(frame[:8], b'\xa5\x5a\x04\x00N\x01\x04\xff')
+        self.assertEqual(crc16(frame[2:-2]), int.from_bytes(frame[-2:], 'little'))
+        window = SimpleNamespace(device=Mock(), nav_sequence=255, nav_status=Mock())
+        window.device.write.return_value = 10
+        RealMappingWindow.send_navigation(window, 4)
+        self.assertEqual(window.nav_sequence, 0)
+        self.assertEqual(window.pending_navigation[:2], (4, 255))
+        window.device.write.assert_called_once_with(frame)
+
     def test_real_map_covers_six_meters(self):
         cfg = real_map_settings()
         self.assertAlmostEqual(cfg['width'] * cfg['resolution'], 6.0)

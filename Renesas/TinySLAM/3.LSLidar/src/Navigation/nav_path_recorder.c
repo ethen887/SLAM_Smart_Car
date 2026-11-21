@@ -26,7 +26,7 @@ static float CalculateDistance(const NavPathPoint *p1, const NavPathPoint *p2)
  */
 void NavPathRecorder_Init(NavPathRecorder_t *recorder, NavPath *path, float min_distance, float min_yaw_change)
 {
-    if(!path) return;
+    if(!recorder || !path) return;
     recorder->path = path;
     recorder->last_point = (NavPathPoint){0}; // 初始化为零值
     recorder->is_1st_initialized = false;
@@ -43,7 +43,7 @@ void NavPathRecorder_Init(NavPathRecorder_t *recorder, NavPath *path, float min_
  */
 void NavPathRecorder_Start(NavPathRecorder_t *recorder, const NavPathPoint *initial_pose)
 {
-    if (!recorder) return;
+    if (!recorder || !recorder->path || !initial_pose) return;
     recorder->is_recording = true;       // 开始记录路径
     // 设置初始位姿为上一个记录点
     recorder->last_point.x = initial_pose->x;
@@ -107,7 +107,7 @@ void NavPathRecorder_Update(NavPathRecorder_t *recorder, const NavPathPoint *cur
  */
 void NavPathRecorder_Stop(NavPathRecorder_t *recorder, const NavPathPoint *final_pose)
 {
-    if (!recorder) return;
+    if (!recorder || !recorder->path || !final_pose) return;
     recorder->is_recording = false; // 停止记录路径
     recorder->is_1st_initialized = false; // 重置初始化状态，以便下次启动时重新记录
     NavPath_AddPoint(recorder->path, final_pose->x, final_pose->y, final_pose->theta);

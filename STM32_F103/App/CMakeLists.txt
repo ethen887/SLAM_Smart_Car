@@ -1,7 +1,8 @@
 add_library(app INTERFACE)
 
 # F103C8 Flash 有限，IMU、里程计及运动任务按尺寸优化。
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/app_test_run.c
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/app_navigation_motion.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/app_test_run.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app_host_comm.c
     ${CMAKE_CURRENT_SOURCE_DIR}/host_protocol.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app_attitude.c
@@ -13,6 +14,7 @@ set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/app_test_run.c
 
 target_sources(app
     INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/app_navigation_motion.c
         ${CMAKE_CURRENT_SOURCE_DIR}/app_host_comm.c
         ${CMAKE_CURRENT_SOURCE_DIR}/host_protocol.c
         ${CMAKE_CURRENT_SOURCE_DIR}/app_move.c

@@ -3,6 +3,7 @@ import math
 import queue
 import struct
 import threading
+import time
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -62,6 +63,16 @@ def obstacle_boxes(occupied, min_cells=1):
     return boxes
 
 
+def navigation_command(command, sequence):
+    body = struct.pack('<HBBBB', 4, ord('N'), 1, command, sequence)
+    return b'\xa5\x5a' + body + struct.pack('<H', crc16(body))
+
+
+NAV_STATES = ('空闲', '录制中', '路线就绪', '自动运行', '已停止', '已到达终点', '错误', '暂停，等待恢复')
+NAV_ERRORS = ('正常', '当前状态不允许此操作/尚无完整路线', '等待有效位姿', '路径容量已满，请重新录制',
+              '等待通信恢复', '障碍物或地图边界阻挡通路', '偏离路径', '底盘通信异常')
+
+
 class StreamParser:
     def __init__(self):
         self.buf = bytearray()
@@ -75,13 +86,18 @@ class StreamParser:
                 del self.buf[0]
                 continue
             length = int.from_bytes(self.buf[2:4], 'little')
-            if length != 2519 and (length < 17 or length > 145 or (length - 17) % 8):
+            if length not in (10, 2519) and (length < 17 or length > 145 or (length - 17) % 8):
                 self.bad += 1; del self.buf[0]; continue
             total = length + 6
             if len(self.buf) < total: break
             frame = self.buf[:total]
             if crc16(frame[2:-2]) != int.from_bytes(frame[-2:], 'little'):
                 self.bad += 1; del self.buf[0]; continue
+            if length == 10:
+                if frame[4:6] != b'N\x01' or frame[8] >= len(NAV_STATES) or frame[9] >= len(NAV_ERRORS):
+                    self.bad += 1; del self.buf[:total]; continue
+                result.append(('navigation', *struct.unpack_from('<BBBBHH', frame, 6)))
+                del self.buf[:total]; continue
             if length == 2519:
                 if frame[4:6] != b'M\x03' or frame[22] > 1:
                     self.bad += 1; del self.buf[:total]; continue
@@ -117,6 +133,23 @@ class RealMappingWindow:
         ttk.Button(top, text='连接', command=self.connect).pack(side='left', padx=4)
         ttk.Button(top, text='断开', command=self.disconnect).pack(side='left')
         ttk.Label(top, text='显示板端地图快照').pack(side='left', padx=8)
+        navigation_bar = ttk.Frame(self.win); navigation_bar.pack(fill='x', padx=8, pady=4)
+        self.nav_menu = tk.Toplevel(self.win)
+        self.nav_menu.withdraw(); self.nav_menu.overrideredirect(True)
+        self.nav_start = ttk.Button(self.nav_menu, text='Start（开始录制）', command=lambda: self.select_navigation(1))
+        self.nav_end = ttk.Button(self.nav_menu, text='End（结束录制）', command=lambda: self.select_navigation(2))
+        self.nav_start.pack(fill='x'); self.nav_end.pack(fill='x')
+        self.nav_button = ttk.Button(navigation_bar, text='Navigation', command=self.show_navigation_menu)
+        self.nav_button.pack(side='left')
+        self.nav_button.bind('<Enter>', self.show_navigation_menu)
+        self.nav_button.bind('<Leave>', self.hide_navigation_menu)
+        self.nav_menu.bind('<Leave>', self.hide_navigation_menu)
+        ttk.Button(navigation_bar, text='Start（自动运行）', command=lambda: self.send_navigation(3)).pack(side='left', padx=6)
+        ttk.Button(navigation_bar, text='Stop（急停）', command=lambda: self.send_navigation(4)).pack(side='left')
+        self.nav_status = tk.StringVar(value='导航：等待连接；先录制路线，再启动自动返程。')
+        ttk.Label(self.win, textvariable=self.nav_status).pack(fill='x', padx=8)
+        self.nav_sequence = 0; self.last_heartbeat = 0; self.last_nav_received = 0
+        self.pending_navigation = None
         serial_options = ttk.Frame(self.win); serial_options.pack(fill='x', padx=8)
         ttk.Label(serial_options, text='波特率').pack(side='left')
         self.baud = tk.StringVar(value='9600')
@@ -129,6 +162,40 @@ class RealMappingWindow:
         self.fig = Figure(figsize=(7, 7)); self.fig.subplots_adjust(left=.12, right=.95, bottom=.12, top=.95); self.ax = self.fig.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(self.fig, self.win); self.canvas.get_tk_widget().pack(fill='both', expand=True)
         self.refresh(); self.clear(); self.win.after(100, self.tick)
+
+    def select_navigation(self, command):
+        self.nav_menu.withdraw()
+        self.send_navigation(command)
+
+    def show_navigation_menu(self, _event=None):
+        # A nonmodal popup keeps USB heartbeat/tick callbacks running on Windows.
+        self.nav_menu.geometry(f'+{self.nav_button.winfo_rootx()}+{self.nav_button.winfo_rooty() + self.nav_button.winfo_height()}')
+        self.nav_menu.deiconify(); self.nav_menu.lift()
+
+    def hide_navigation_menu(self, _event=None):
+        def hide():
+            x, y = self.win.winfo_pointerxy()
+            for widget in (self.nav_button, self.nav_menu):
+                if (widget.winfo_rootx() <= x < widget.winfo_rootx() + widget.winfo_width() and
+                        widget.winfo_rooty() <= y < widget.winfo_rooty() + widget.winfo_height()):
+                    return
+            self.nav_menu.withdraw()
+        self.win.after(150, hide)
+
+    def send_navigation(self, command):
+        if not self.device:
+            if command != 5: self.nav_status.set('导航：请先连接 USB 串口。')
+            return
+        try:
+            sequence = self.nav_sequence
+            frame = navigation_command(command, sequence)
+            if self.device.write(frame) != len(frame): raise OSError('命令未完整发送')
+            if command != 5:
+                self.nav_sequence = (sequence + 1) & 255
+                self.pending_navigation = (command, sequence, time.monotonic())
+                self.nav_status.set('导航：命令已发送，等待板端确认。')
+        except Exception as exc:
+            self.nav_status.set('导航命令发送失败：' + str(exc))
 
     def refresh(self):
         try:
@@ -159,7 +226,7 @@ class RealMappingWindow:
             messagebox.showerror('波特率错误', '请输入大于 0 的整数波特率。', parent=self.win); return
         try:
             import serial
-            self.device = serial.Serial(self.port.get(), baud, timeout=0.1)
+            self.device = serial.Serial(self.port.get(), baud, timeout=0.1, write_timeout=0.2)
         except Exception as exc:
             messagebox.showerror('串口连接失败', str(exc), parent=self.win); return
         self.stop.clear(); self.parser = StreamParser(); self.queue = queue.Queue(maxsize=2000); self.clear()
@@ -171,7 +238,7 @@ class RealMappingWindow:
             while not self.stop.is_set():
                 data = self.device.read(1024)
                 for frame in self.parser.feed(data):
-                    if frame[0] != 'map': continue
+                    if frame[0] not in ('map', 'navigation'): continue
                     try: self.queue.put_nowait(frame)
                     except queue.Full:
                         self.queue.get_nowait(); self.queue.put_nowait(('error', '电脑处理队列已满，地图可能不一致')); return
@@ -180,11 +247,26 @@ class RealMappingWindow:
 
     def tick(self):
         if not self.win.winfo_exists(): return
+        now = time.monotonic()
+        if self.device and now - self.last_heartbeat >= 0.2:
+            self.last_heartbeat = now; self.send_navigation(5)
+        if self.pending_navigation and now-self.pending_navigation[2] > 2:
+            self.pending_navigation = None
+            self.nav_status.set('导航：未收到命令确认，请检查板端状态后重试。')
+        if self.device and self.last_nav_received and now-self.last_nav_received > 2:
+            self.nav_status.set('导航：板端状态反馈中断。')
         pose = None; received = False
         for _ in range(500):
             try: item = self.queue.get_nowait()
             except queue.Empty: break
             if item[0] == 'error': self.status.set('串口异常：' + item[1]); self.disconnect(); break
+            if item[0] == 'navigation':
+                _, cmd, seq, state, error, count, target = item
+                self.last_nav_received = now
+                if self.pending_navigation and self.pending_navigation[:2] == (cmd, seq):
+                    self.pending_navigation = None
+                self.nav_status.set(f'导航：{NAV_STATES[state]}；{NAV_ERRORS[error]}；路径点 {count}，目标 {min(target+1, count)}/{count}')
+                continue
             _, seq, pose, self.cells = item
             self.last = seq; self.count += 1; received = True
         if received:
@@ -207,6 +289,10 @@ class RealMappingWindow:
         self.ax.set_xlabel('X (m)'); self.ax.set_ylabel('Y (m)'); self.ax.set_aspect('equal'); self.canvas.draw_idle()
 
     def disconnect(self):
+        self.nav_menu.withdraw()
+        if self.device: self.send_navigation(4)
+        self.pending_navigation = None
+        self.last_nav_received = 0
         self.stop.set()
         if self.device:
             self.device.close()
