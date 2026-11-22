@@ -18,31 +18,30 @@
 #include <string.h>
 #include <stdio.h>
 
-volatile uint32_t g_mapping_cycles;
-volatile uint32_t g_mapping_overruns;
-volatile uint64_t g_mapping_last_us;
-volatile uint64_t g_mapping_max_us;
-
 /**
- * @brief 主入口：建图与规划 → 自动导航到终点 → 终点视觉跟随。
+ * @brief 主入口：建图 → 自主导航 → 终点视觉，三段靠 g_navigation_state 切换。
  *
- * @details 三段流程共用一条 20 ms 主循环，靠 g_navigation_state 切换控制权：
+ * @details
+ *          第一段 建图（USB 接着，手柄控车）
+ *            电脑用 USB 连 RA8P1，手柄直接控制底盘沿场地走一遍。
+ *            底盘里程计经 UART0 送来位姿，雷达点云经 LiDar_Data_Process()
+ *            喂给建图模块（内部调 App_BuildMap_OnPoints），地图实时长出来并
+ *            经 USB 回传给电脑，由电脑确定起点和终点坐标。
+ *            这一段没有开始/结束开关：只要车在动、雷达在转，建图就在进行。
  *
- *          1) 建图与规划
- *             上位机经 USB 下发路线点，导航用 NavFn 在实时地图上规划路径
- *             （NAV_PLANNING → NAV_READY）。雷达点云经 LiDar_Data_Process()
- *             持续喂给建图模块（内部调 App_BuildMap_OnPoints），地图在车
- *             行驶过程中同步更新，导航避障和后面的视觉停车测距都用这张图。
+ *          第二段 自主导航（可以拔掉 USB）
+ *            电脑把终点坐标经 USB 下发，导航在已建好的地图上规划出路径，
+ *            回放预览确认后进入 NAV_READY。此时拔掉 USB 不影响后续运行：
+ *            导航只在收到指令时才读 USB，没有“电脑心跳”这类依赖，
+ *            状态回传发不出去也只会被 UsbSerial 丢掉，不会阻塞主循环。
+ *            手柄按 START 后进入 NAV_RUNNING，沿路径行驶到终点并置 NAV_DONE。
  *
- *          2) 自动导航（NAV_RUNNING）
- *             按手柄 START 后从起点沿规划路径行驶，避障由导航的足迹检查
- *             App_NavigationPlan_CheckFootprint() 负责；到达最后一个路径点时
- *             导航自己把状态置为 NAV_DONE 并锁存制动。
+ *          第三段 终点视觉
+ *            NAV_DONE 后视觉自动接管，向 K230 发开始命令并原地转找蓝色 A4 纸，
+ *            找到后用 offset_x 转向、box_h/area 定速度靠近，
+ *            雷达沿车头方向测到墙的距离小于 VISION_CLEARANCE_MIN 时停车。
  *
- *          3) 终点视觉（NAV_DONE → 视觉 SEARCH/TRACK → VISION_REACHED）
- *             视觉只在 NAV_DONE 下启动，随即向 K230 发开始命令：
- *             原地转找蓝色纸 → 用 offset_x 转向、box_h/area 定速走过去 →
- *             雷达沿车头方向测到墙的距离小于 VISION_CLEARANCE_MIN 时停车。
+ * @note 地图放在片外 SDRAM，掉电即失，所以建图和导航必须在同一次上电内完成。
  */
 void new_thread0_entry(void *pvParameters)
 {
@@ -69,7 +68,7 @@ void new_thread0_entry(void *pvParameters)
     stm32_data_process_init();
     k230_data_process_init();
 
-    // 应用层：导航从 NAV_IDLE 开始等上位机下发路线，视觉在 NAV_DONE 后接管
+    // 应用层：导航从 NAV_IDLE 开始等电脑下发路线，视觉在 NAV_DONE 后接管
     App_Navigation_Init();
     App_Vision_Init();
 
@@ -78,7 +77,6 @@ void new_thread0_entry(void *pvParameters)
 
     for (;;) {
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(20));
-        uint64_t started_us = gpt_get_timestamp_us();
 
         taskENTER_CRITICAL();
         uint32_t stm32_snapshot = stm32_data_snapshot();
@@ -95,6 +93,7 @@ void new_thread0_entry(void *pvParameters)
         App_Vision_Poll();
         App_Navigation_Poll();
 
+        // 地图快照只用于电脑端显示，拔掉 USB 后这次调用会直接返回失败，不阻塞
         if (++map_divider >= 10) {
             map_divider = 0;
             App_BuildMap_PublishSnapshot();
@@ -103,11 +102,5 @@ void new_thread0_entry(void *pvParameters)
         if (g_new_lidar_ready) {
             g_new_lidar_ready = false;
         }
-
-        uint64_t elapsed_us = gpt_get_timestamp_us() - started_us;
-        g_mapping_last_us = elapsed_us;
-        if (elapsed_us > g_mapping_max_us) g_mapping_max_us = elapsed_us;
-        if (elapsed_us > 20000U) g_mapping_overruns++;
-        g_mapping_cycles++;
     }
 }
