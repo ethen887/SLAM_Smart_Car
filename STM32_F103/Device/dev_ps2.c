@@ -10,8 +10,8 @@
 #define PS2_CS_LOW()  HAL_GPIO_WritePin(PS2_CS_PORT, PS2_CS_PIN, GPIO_PIN_RESET)
 #define PS2_CS_HIGH() HAL_GPIO_WritePin(PS2_CS_PORT, PS2_CS_PIN, GPIO_PIN_SET)
 
-// 最近一次有效的 PS2 原始输入数据，供应用层读取。
 Ps2Data_t ps2_data;
+volatile Ps2LinkStats_t g_ps2_link;
 static uint32_t ps2_cycles_per_us;
 static bool ps2_initialized;
 
@@ -138,10 +138,14 @@ bool Dev_Ps2_Read(void)
 
     if (!ps2_initialized) {
         Ps2_ResetData();
+        g_ps2_link.last_read_ok = false;
         return false;
     }
 
+    ++g_ps2_link.polls;
     status = Ps2_Exchange(NULL, 0U, true, rx, &count);
+    g_ps2_link.spi_status = (uint8_t)status;
+    g_ps2_link.reply = ((uint32_t)rx[0] << 16) | ((uint32_t)rx[1] << 8) | rx[2];
 
     // 根据协议确认字节和模式字节确定合法帧长度。
     if (count >= 3U && rx[2] == 0x5AU) {
@@ -154,14 +158,15 @@ bool Dev_Ps2_Read(void)
     }
 
     // 通信状态、模式和帧长度均正确时，才更新公共输入数据。
-    if (status == HAL_OK && expected != 0U && count == expected) {
+    bool valid = status == HAL_OK && expected != 0U && count == expected;
+    if (valid) {
         Ps2_ResetData();
         Ps2_Decode(rx);
-        return true;
+        ++g_ps2_link.frames;
     }
 
-    // 读取失败时，保留上一次有效数据，避免误动作。
-    return false;
+    g_ps2_link.last_read_ok = valid;
+    return valid;
 }
 
 /*

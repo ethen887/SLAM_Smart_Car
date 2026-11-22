@@ -10,6 +10,7 @@
 #define RX_DMA_SIZE 128U     /**< USART1 循环接收 DMA 缓冲区大小，单位：字节。 */
 #define RX_RING_SIZE 256U    /**< 接收软件环形缓冲区大小，预留一个空槽。 */
 #define RX_PARSE_BUDGET 128U /**< 每次轮询最多解析的接收字节数。 */
+#define RX_RETRY_MS 20U      /**< 连续接收异常时，两次启动 DMA 的最短间隔。 */
 #define REMOTE_FRAME_COPIES 4U /**< 每次事件发送 100 字节，覆盖瑞萨一个 DMA 接收块。 */
 
 volatile HostCommStats host_comm_stats;
@@ -25,6 +26,7 @@ static uint16_t rx_dma_pos;
 static uint8_t rx_ring[RX_RING_SIZE];
 static volatile uint16_t rx_head, rx_tail;
 static volatile uint8_t rx_restart;
+static uint32_t rx_start_ms; /**< 上一次启动接收的时刻，单位 ms。 */
 static uint8_t parse_buffer[HOST_MAX_PAYLOAD + HOST_FRAME_OVERHEAD];
 static uint16_t parse_length;
 static uint32_t seen_rx_overflows;
@@ -70,6 +72,7 @@ void App_HostComm_SampleRemoteStart(bool valid, bool pressed)
             armed = false;
             taskENTER_CRITICAL();
             ++remote_press_id;
+            ++host_comm_stats.remote_events;
             remote_press_ms = HAL_GetTick();
             taskEXIT_CRITICAL();
         }
@@ -98,6 +101,7 @@ static bool send_remote_start(void)
     tx_busy = 1;
     if (HAL_UART_Transmit_DMA(&huart1, remote_tx_buffer, sizeof(remote_tx_buffer)) == HAL_OK) {
         sent_press_id = press_id;
+        ++host_comm_stats.tx_remote_batches;
         ++host_comm_stats.tx_batches;
     } else {
         tx_busy = 0;
@@ -110,6 +114,7 @@ static bool send_remote_start(void)
 static void start_receive(void)
 {
     rx_dma_pos = 0;
+    rx_start_ms = HAL_GetTick();
     if (HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_dma, sizeof(rx_dma)) != HAL_OK) {
         ++host_comm_stats.rx_errors;
         rx_restart = 1;
@@ -229,14 +234,14 @@ static void parse_byte(uint8_t byte)
 /** @brief 执行接收恢复、限量解析和待发送批次的非阻塞调度。 */
 void App_HostComm_Poll(void)
 {
-    if (rx_restart) {
+    if (rx_restart && (uint32_t)(HAL_GetTick() - rx_start_ms) >= RX_RETRY_MS) {
         HAL_UART_AbortReceive(&huart1);
         taskENTER_CRITICAL();
         rx_head = rx_tail = 0; rx_restart = 0; parse_length = 0;
         taskEXIT_CRITICAL();
         start_receive();
     }
-    for (unsigned i = 0; i < RX_PARSE_BUDGET; ++i) {
+    for (unsigned i = 0; i < RX_PARSE_BUDGET && !rx_restart; ++i) {
         uint8_t byte;
         taskENTER_CRITICAL();
         if (seen_rx_overflows != host_comm_stats.rx_overflows) {

@@ -6,6 +6,12 @@
 #include <math.h>
 #include <string.h>
 
+#ifndef NAVIGATION_MOTION_TIMEOUT_MS
+#define NAVIGATION_MOTION_TIMEOUT_MS 350U /**< 正式固件的运动指令有效期，单位为毫秒。 */
+#endif
+
+volatile uint32_t g_navigation_motion_timeout_cycles;
+
 /* Communication task publishes a mailbox; only motor task touches the driver. */
 static uint8_t mode;
 static float linear, angular;
@@ -30,7 +36,12 @@ bool App_NavigationMotion_Update(void)
     uint32_t age=HAL_GetTick()-received_ms;
     taskEXIT_CRITICAL();
     if (!current) return false;
-    if (current==2 || age>350U) { App_Move_Brake(); return true; }
+    if (current==2) { App_Move_Brake(); return true; }
+    if (age > NAVIGATION_MOTION_TIMEOUT_MS) {
+        ++g_navigation_motion_timeout_cycles;
+        App_Move_Brake();
+        return true;
+    }
     OdometryConfig_t g=odometry_config;
     if (!(g.left_radius_m>0 && g.right_radius_m>0 && g.wheel_track_m>0) ||
         !isfinite(g.left_radius_m) || !isfinite(g.right_radius_m) || !isfinite(g.wheel_track_m)) {

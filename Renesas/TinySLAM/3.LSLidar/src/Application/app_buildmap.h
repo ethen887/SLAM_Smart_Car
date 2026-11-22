@@ -15,7 +15,7 @@
 /** 地图及统计量保留在 RAM 中，可通过调试器观察。 */
 extern Map g_build_map;
 extern Cell g_build_map_cells[BUILD_MAP_CELLS];
-extern uint8_t g_build_map_obstacles[BUILD_MAP_CELLS]; /* 0=other, 1=obstacle, 2=wall candidate. */
+extern uint8_t g_build_map_obstacles[BUILD_MAP_CELLS]; /**< 快照生成时保存障碍分类，规划时复用。 */
 extern uint32_t g_build_map_frames;
 extern uint32_t g_build_map_skipped_no_pose;
 extern uint32_t g_build_map_stream_dropped;
@@ -25,6 +25,20 @@ extern float g_lidar_angle_sign;
 /** @brief 初始化真实数据建图模块。 */
 void App_BuildMap_Init(void);
 void App_BuildMap_PublishSnapshot(void);
+
+/** @brief 规划所需的整图缓冲，三个数组各有 BUILD_MAP_CELLS 个元素。 */
+typedef struct {
+    uint8_t *costs;       /**< 与地图快照的障碍分类共用。 */
+    uint8_t *pending;     /**< 与建图的射线标记共用。 */
+    float *potential;    /**< 与地图快照的连通域队列共用。 */
+} BuildMapPlanBuffers;
+
+/**
+ * @brief 借用建图线程的临时缓冲，供停车时同步规划。
+ * @param[out] buffers 规划缓冲的借用视图。
+ * @note 仅在建图线程调用，规划返回后不得保留。地图快照会重建障碍分类。
+ */
+void App_BuildMap_BorrowPlanBuffers(BuildMapPlanBuffers *buffers);
 
 /**
  * @brief 获取最新可用的车体位姿，坐标与当前建图地图一致。

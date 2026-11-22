@@ -1,72 +1,46 @@
-/**
- * @file app_navigation.h
- * @brief 导航应用层的状态、命令及周期接口。
- * @details 组织路线录制、起步接入、逐点返程和急停；路线仅保存在内存中。
+/** @file app_navigation.h
+ *  @brief 全局规划、路径预览及手柄启停的任务接口。
  */
 #ifndef APP_NAVIGATION_H
 #define APP_NAVIGATION_H
+
 #include <stdint.h>
 
-/** @brief 导航运行状态；枚举顺序对应电脑端状态协议，不可随意调整。 */
+/** @brief 导航状态，数值对应上位机状态协议。 */
 typedef enum {
-    NAV_IDLE,       /**< 手动控制，导航释放底盘控制权。 */
-    NAV_RECORDING,  /**< 人工带车移动并录制路径。 */
-    NAV_READY,      /**< 录制结束，返程路线已就绪，底盘保持制动。 */
-    NAV_RUNNING,    /**< 正在接入路线或逐点自动返程。 */
-    NAV_STOPPED,    /**< 主动急停或通路阻挡，需重新下发运行命令。 */
-    NAV_DONE,       /**< 已到达返程终点并完成航向调整。 */
-    NAV_ERROR,      /**< 录制容量等错误导致停止。 */
-    NAV_PAUSED      /**< 通信或位姿暂时不可用，条件恢复后自动继续。 */
+    NAV_IDLE,       /**< 手动建图，底盘由手柄控制。 */
+    NAV_PLANNING,   /**< 底盘制动，等待或正在计算 NavFn 路径。 */
+    NAV_READY,      /**< 已收到预览确认，等待手柄 START。 */
+    NAV_RUNNING,    /**< 正在跟踪已预览的路径。 */
+    NAV_STOPPED,    /**< 任务终止并保持制动。 */
+    NAV_DONE,       /**< 到达目标并保持制动。 */
+    NAV_ERROR,      /**< 规划或跟踪失败，保持制动。 */
+    NAV_PREVIEW = 8 /**< 路径已生成，等待上位机收到并显示。 */
 } NavigationState;
 
-/** @brief 导航错误码；数值对应电脑端状态协议。 */
+/** @brief 导航错误，保留已有状态协议的错误编号。 */
 typedef enum {
-    NAV_OK,         /**< 正常。 */
-    NAV_BAD_STATE,  /**< 当前状态、路线或地图条件不满足操作要求。 */
-    NAV_NO_POSE,    /**< 当前位姿或路线反转所需条件不可用。 */
-    NAV_FULL,       /**< 路径点存储容量不足。 */
-    NAV_LINK_LOST,  /**< USB 断开或电脑心跳超时。 */
-    NAV_OBSTACLE,   /**< 车体足迹范围内存在确认占据的栅格。 */
-    NAV_OFF_PATH,   /**< 偏离路径，保留的协议错误码。 */
-    NAV_TRANSPORT,  /**< 底盘运动指令发送异常。 */
-    NAV_BOUNDARY,   /**< 车体足迹或接入目标超出地图可用范围。 */
-    NAV_NO_ROUTE   /**< 未搜索到当前位置与目标之间的接入通路。 */
+    NAV_OK = 0, NAV_BAD_STATE = 1, NAV_NO_POSE = 2, NAV_FULL = 3,
+    NAV_OBSTACLE = 5, NAV_START_MOVED = 6, NAV_TRANSPORT = 7,
+    NAV_BOUNDARY = 8, NAV_NO_ROUTE = 9, NAV_PLAN_FAILED = 10
 } NavigationError;
 
-/** @brief USB 导航命令；电脑界面负责构造协议帧。 */
-enum {
-    NAV_RECORD_START = 1, /**< 开始录制，当前位置作为自动返程终点。 */
-    NAV_RECORD_END,       /**< 结束录制，补录当前位置并反转路线。 */
-    NAV_RUN,              /**< 从当前位置接入已录制路线并开始返程。 */
-    NAV_ESTOP,            /**< 锁存急停，后续心跳不会解除制动。 */
-    NAV_HEARTBEAT,        /**< 更新电脑端存活时间，不单独回复确认。 */
-    NAV_MANUAL,           /**< 结束导航占用并释放手柄，保留已完成的路线。 */
-    NAV_REMOTE_START     /**< 状态帧中的遥控器 START 来源标记，不能通过 USB 下发。 */
-};
+extern volatile NavigationState g_navigation_state; /**< 当前任务状态。 */
+extern volatile NavigationError g_navigation_error; /**< 当前任务错误。 */
+extern volatile uint32_t g_navigation_plan_us; /**< 最近一次完整规划耗时，单位为微秒。 */
 
-extern volatile NavigationState g_navigation_state; /**< 当前导航状态，供调试观察。 */
-extern volatile NavigationError g_navigation_error; /**< 当前导航错误，供调试观察。 */
-
-/**
- * @brief 初始化导航状态、路径录制器及底盘串口发送回调。
- * @note 在地图和底盘通信初始化后调用；初始化会清空内存中的路线。
- */
+/** @brief 初始化导航任务及板间串口发送回调。 */
 void App_Navigation_Init(void);
 
 /**
- * @brief 处理板间串口收到的 START 按下事件。
- * @param[in] press_id STM32 本次上电期间递增的按下序号。
- * @param[in] timestamp_ms STM32 确认按下时的时间戳，单位为毫秒。
- * @note 由建图线程调用。重复帧不会重复触发。运行或运行暂停时结束任务并保持制动。
+ * @brief 处理 STM32 发来的 START 按下事件，重复帧只处理一次。
+ * @param[in] press_id STM32 侧本次上电期间递增的按下序号。
+ * @param[in] timestamp_ms STM32 确认按下的时刻，单位为毫秒。
+ * @note 只在路径预览完成后启动；运行中按下结束任务并保持制动。
  */
 void App_Navigation_OnRemoteStart(uint32_t press_id, uint32_t timestamp_ms);
 
-/**
- * @brief 解析电脑命令并推进录制、返程、暂停恢复及状态反馈。
- * @details 每次最多读取 128 字节；跟踪指令间隔为 100 ms，状态反馈间隔为 500 ms。
- *          电脑启动的任务和录制依赖 USB 心跳。遥控启动的任务独立于 USB。
- *          位姿不可用时暂停，恢复后重新接入路线。主动停止后保持制动。
- * @note 在建图线程完成 STM32 数据解析后每 20 ms 调用，不可从多个任务并发调用。
- */
+/** @brief 在建图线程处理 USB 命令、规划和路径跟踪。 */
 void App_Navigation_Poll(void);
+
 #endif

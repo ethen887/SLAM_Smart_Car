@@ -7,16 +7,18 @@
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *, uint16_t);
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *);
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *);
 UART_HandleTypeDef huart1;
 static uint8_t *dma_rx, sent[125];
 static unsigned sends, received;
 static uint8_t remote_sent[100];
 static unsigned remote_sends;
 static uint32_t fake_tick;
-static int fail_tx;
+static unsigned rx_starts;
+static int fail_tx, fail_rx;
 uint32_t HAL_GetTick(void) { return fake_tick; }
 HAL_StatusTypeDef HAL_UARTEx_ReceiveToIdle_DMA(UART_HandleTypeDef *u, uint8_t *p, uint16_t n)
-{ (void)u; assert(n == 128); dma_rx = p; return HAL_OK; }
+{ (void)u; assert(n == 128); ++rx_starts; dma_rx = p; return fail_rx ? HAL_ERROR : HAL_OK; }
 HAL_StatusTypeDef HAL_UART_AbortReceive(UART_HandleTypeDef *u) { (void)u; return HAL_OK; }
 HAL_StatusTypeDef HAL_UART_Transmit_DMA(UART_HandleTypeDef *u, uint8_t *p, uint16_t n)
 {
@@ -74,6 +76,7 @@ int main(void)
     fake_tick = 321;
     sample(true, true, 2);
     fail_tx = 1; App_HostComm_Poll(); assert(remote_sends == 0);
+    assert(host_comm_stats.remote_events == 1 && host_comm_stats.tx_remote_batches == 0);
     fail_tx = 0; App_HostComm_Poll(); assert(remote_sends == 1);
     Host_EncodeRemoteStart(frame, 1, 321);
     for (unsigned i = 0; i < sizeof(remote_sent); i += sizeof(frame)) {
@@ -85,5 +88,23 @@ int main(void)
     sample(true, true, 50); App_HostComm_Poll(); assert(remote_sends == 1);
     sample(true, false, 2);
     sample(true, true, 2); App_HostComm_Poll(); assert(remote_sends == 2 && remote_sent[5] == 2);
+    assert(host_comm_stats.remote_events == 2 && host_comm_stats.tx_remote_batches == 2);
+
+    /* 连续接收错误期间按节奏恢复，START 发送仍可进行。 */
+    unsigned starts = rx_starts;
+    fail_rx = 1;
+    HAL_UART_TxCpltCallback(&huart1);
+    HAL_UART_ErrorCallback(&huart1);
+    App_HostComm_Poll(); assert(rx_starts == starts + 1);
+    sample(true, false, 2);
+    sample(true, true, 2);
+    for (unsigned i = 0; i < 19; ++i) { ++fake_tick; App_HostComm_Poll(); }
+    assert(rx_starts == starts + 1 && remote_sends == 3 && remote_sent[5] == 3);
+    fail_rx = 0;
+    ++fake_tick; App_HostComm_Poll(); assert(rx_starts == starts + 2);
+    Host_EncodeOdometry(frame, 42, 0, 0, 0);
+    memcpy(dma_rx, frame, sizeof(frame));
+    HAL_UARTEx_RxEventCallback(&huart1, sizeof(frame)); App_HostComm_Poll();
+    assert(received == 4);
     puts("host communication tests passed");
 }

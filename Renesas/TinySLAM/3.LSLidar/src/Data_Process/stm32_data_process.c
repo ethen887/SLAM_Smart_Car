@@ -16,6 +16,7 @@ static uint8_t stm32_dma_raw_data[STM32_DATA_BLOCK_SIZE]; // 用于 DMA 接收�
 static volatile uint32_t stm32_written;
 static uint32_t stm32_read;
 volatile uint32_t g_stm32_blocks_overwritten;
+volatile uint32_t g_stm32_remote_frames, g_stm32_remote_press_id;
 #define POSE_HISTORY_SIZE 128U
 #define POSE_MAX_AGE_US 500000ULL
 /* Must match UART0 in configuration.xml (8N1). */
@@ -124,8 +125,11 @@ void Stm32_Data_Process(uint32_t snapshot)
                     if (frame_data[2] == STM32_TYPE_REMOTE_START)
                     {
                         uint32_t press_id, press_ms;
-                        if (stm32_parse_remote_start(frame_data, &press_id, &press_ms))
+                        if (stm32_parse_remote_start(frame_data, &press_id, &press_ms)) {
+                            ++g_stm32_remote_frames;
+                            g_stm32_remote_press_id = press_id;
                             App_Navigation_OnRemoteStart(press_id, press_ms);
+                        }
                     }
                     else if(stm32_pose_parse_frame(frame_data, &pose) != NULL)
                     {

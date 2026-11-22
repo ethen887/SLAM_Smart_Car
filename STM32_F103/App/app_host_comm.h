@@ -17,6 +17,8 @@ typedef struct {
     uint32_t rx_errors;        /**< 串口错误及接收启动失败次数。 */
     uint32_t rx_bad_frames;    /**< 长度、CRC 或帧尾不合法的候选帧数。 */
     uint32_t rx_valid_frames;  /**< 通过完整帧检查的接收帧数。 */
+    uint32_t remote_events;    /**< PS2 确认的 START 按下事件数。 */
+    uint32_t tx_remote_batches; /**< 已提交给 USART1 DMA 的 START 批次数。 */
 } HostCommStats;
 
 /** @brief 通信统计信息；计数可能同时被中断和任务更新。 */
