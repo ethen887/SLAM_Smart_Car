@@ -6,6 +6,7 @@
 #ifndef APP_NAVIGATION_H
 #define APP_NAVIGATION_H
 #include <stdint.h>
+#include <stdbool.h>
 
 /** @brief 导航运行状态；枚举顺序对应电脑端状态协议，不可随意调整。 */
 typedef enum {
@@ -59,4 +60,26 @@ void App_Navigation_Init(void);
  * @note 在建图线程完成 STM32 数据解析后每 20 ms 调用，不可从多个任务并发调用。
  */
 void App_Navigation_Poll(void);
+
+/**
+ * @brief 由视觉跟随模块下发底盘速度指令。
+ * @param[in] v 线速度，单位为米每秒。
+ * @param[in] w 角速度，单位为弧度每秒，正值为左转。
+ * @return true 表示指令已提交串口发送；false 表示串口正忙，本周期未发送。
+ * @note 仅在导航状态为 NAV_DONE、且视觉模块接管底盘后调用；内部与雷达导航共用同一帧格式，
+ *       因此两者不会同时占用串口发送通道。
+ */
+bool App_Navigation_VisionDrive(float v, float w);
+
+/**
+ * @brief 检查车体沿当前航向可以安全前进的距离，供视觉模式做雷达防撞。
+ * @param[in] max_distance 本次检查的最远距离，单位为米。
+ * @return 从车体中心算起、第一个被占据或越界足迹的距离，单位为米；
+ *         一路畅通时返回 max_distance。位姿不可用时返回 0，
+ *         此时调用方必须禁止前进（但允许原地转向）。
+ * @details 使用建图栅格的足迹检查，与雷达导航的避障判据完全一致；
+ *          检查步长为 5 cm，起点为车体半径，因此返回值 < 车体半径 + 0.15 米
+ *          意味着车头即将接触障碍。
+ */
+float App_Navigation_Clearance(float max_distance);
 #endif

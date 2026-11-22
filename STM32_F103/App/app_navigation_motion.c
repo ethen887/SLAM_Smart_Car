@@ -16,7 +16,12 @@ void App_HostComm_OnFrame(uint8_t type, const uint8_t *payload, uint16_t length)
     if (type!=0x20 || length!=9 || !payload || payload[0]>2) return;
     float v,w;
     memcpy(&v,payload+1,4); memcpy(&w,payload+5,4);
-    if (!isfinite(v) || !isfinite(w) || fabsf(v)>0.15f || fabsf(w)>0.8f) return;
+    /* 限幅与 RA8P1 侧视觉跟随参数配平：视觉最大下发 0.48 m/s、2.20 rad/s
+     * （基础值的 4 倍）。原先这里卡 0.15/0.8，超过就整帧丢弃，
+     * 表现为“视觉提速后小车完全不动”。轮速的绝对上限由
+     * App_Move_SetWheelSpeeds() 里的 MG513_MAX_SPEED 归一化兜底，
+     * 因此这里放开不会导致电机超速。 */
+    if (!isfinite(v) || !isfinite(w) || fabsf(v)>0.55f || fabsf(w)>2.40f) return;
     taskENTER_CRITICAL();
     mode=payload[0]; linear=v; angular=w; received_ms=HAL_GetTick();
     taskEXIT_CRITICAL();

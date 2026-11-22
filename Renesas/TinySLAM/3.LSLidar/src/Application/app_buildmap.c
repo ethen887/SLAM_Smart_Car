@@ -1,5 +1,4 @@
 #include "app_buildmap.h"
-#include "Serial_debug.h"
 #include "usb_serial.h"
 #include "stm32_data_process.h"
 #include "gpt.h"
@@ -91,7 +90,7 @@ static void App_BuildMap_Send(const Pose *pose, const Ray *rays, uint8_t count)
             crc = (uint16_t)((crc >> 1) ^ ((crc & 1U) ? 0xa001U : 0U));
     }
     data[4 + payload] = (uint8_t)crc; data[5 + payload] = (uint8_t)(crc >> 8);
-    if (!Serial_debug_send(data, (uint32_t)payload + 6U)) g_build_map_stream_dropped++;
+    if (!UsbSerial_send(data, (uint32_t)payload + 6U)) g_build_map_stream_dropped++;
 }
 
 void App_BuildMap_Init(void)

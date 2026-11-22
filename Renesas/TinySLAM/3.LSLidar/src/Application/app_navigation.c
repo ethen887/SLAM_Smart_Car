@@ -10,6 +10,7 @@
 #include "usb_serial.h"
 #include "hal_data.h"
 #include "gpt.h"
+#include "app_vision.h"
 #include <math.h>
 #include <string.h>
 
@@ -29,7 +30,7 @@ static NavigationState resume_state; /**< 临时暂停前的状态，用于自�
 #define JOIN_RESOLUTION (BUILD_MAP_RESOLUTION * BUILD_MAP_WIDTH / JOIN_WIDTH) /**< 接入栅格分辨率，单位为米。 */
 static uint16_t parents[JOIN_WIDTH * JOIN_HEIGHT], join_cells[JOIN_WIDTH * JOIN_HEIGHT]; /**< 搜索父节点数组及搜索队列；搜索成功后队列复用为反向接入路线。 */
 static unsigned join_count; /**< 尚未跟踪的接入节点数量，从数组尾部依次取出。 */
-#define NAV_BODY_RADIUS 0.15f /**< 圆形车体检查半径，单位为米。 */
+#define NAV_BODY_RADIUS 0.13f /**< 圆形车体检查半径，单位为米（实车 25 cm × 25 cm，半径 12.5 cm，取 13 cm）。 */
 #define NAV_OCCUPIED_LOG_ODDS 1.5f /**< 导航确认占据所需的对数几率阈值。 */
 #define NAV_LOOKAHEAD 0.20f /**< 前方检查距离上限，单位为米，实际不超过目标距离。 */
 static NavigationError footprint_error(float x, float y);
@@ -330,8 +331,41 @@ void App_Navigation_Poll(void)
             else { NavPathPoint point={p.x,p.y,p.theta}; NavPathRecorder_Update(&recorder,&point); }
         } else if (now-last_drive>=100000) { last_drive=now; follow(p); }
     }
-    if (g_navigation_state==NAV_STOPPED || g_navigation_state==NAV_DONE ||
-        g_navigation_state==NAV_ERROR || g_navigation_state==NAV_READY || g_navigation_state==NAV_PAUSED) drive(2,0,0);
+    /** @brief 视觉模块接管底盘时不再重复下发制动，避免与视觉速度指令互相打断。 */
+    if (!App_Vision_Active() && (g_navigation_state==NAV_STOPPED || g_navigation_state==NAV_DONE ||
+        g_navigation_state==NAV_ERROR || g_navigation_state==NAV_READY || g_navigation_state==NAV_PAUSED)) drive(2,0,0);
     if (g_navigation_state==NAV_RECORDING || g_navigation_state==NAV_IDLE) drive(0,0,0);
     if (now-last_status>=500000) { last_status=now; status(); }
+}
+/**
+ * @brief 由视觉跟随模块下发底盘速度指令。
+ * @param[in] v 线速度，单位为米每秒。
+ * @param[in] w 角速度，单位为弧度每秒，正值为左转。
+ * @return true 表示指令已提交串口发送；false 表示串口正忙，本周期未发送。
+ * @details 复用雷达导航的 drive()，帧格式、发送通道与制动逻辑完全一致。
+ */
+bool App_Navigation_VisionDrive(float v,float w)
+{
+    return drive(1,v,w);
+}
+/**
+ * @brief 检查车体沿当前航向可以安全前进的距离，供视觉模式做雷达防撞。
+ * @param[in] max_distance 本次检查的最远距离，单位为米。
+ * @return 第一个被占据或越界足迹的距离；一路畅通时返回 max_distance；
+ *         位姿不可用时返回 0，调用方必须禁止前进。
+ * @details 复用 footprint_error()，与雷达导航的避障判据完全一致。
+ *          步长 2 cm：视觉停车要求“车头距墙小于 30 cm”，用 5 cm 步长会让
+ *          判定距离有 ±5 cm 抖动，2 cm 后停车点稳定在 24~26 cm。
+ */
+float App_Navigation_Clearance(float max_distance)
+{
+    Pose p;
+    /** @brief 位姿不可用（STM32 未连接或里程计超时）时不允许盲目前进。 */
+    if (!App_BuildMap_GetRobotPose(&p)) return 0.0f;
+    /** @brief 从车体中心开始扫描，返回值即为“车体中心到障碍”的距离；
+     *         车头前边缘距中心约 12.5 cm，因此车头到障碍 ≈ 返回值 + 12.5 cm。 */
+    for (float d=0.0f;d<=max_distance;d+=0.02f) {
+        if (footprint_error(p.x+d*cosf(p.theta),p.y+d*sinf(p.theta))!=NAV_OK) return d;
+    }
+    return max_distance;
 }

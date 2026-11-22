@@ -22,14 +22,13 @@
             <slot name="P715.CPU0" secure="true"/>
         </peripheral>
         <peripheral name="PORT8.CPU0" group="PORT">
-            <slot name="P801.CPU0" secure="true"/>
-            <slot name="P802.CPU0" secure="true"/>
             <slot name="P814.CPU0" secure="true"/>
             <slot name="P815.CPU0" secure="true"/>
         </peripheral>
         <peripheral name="DMA_DMAC1.CPU0" group="DMA_DMAC" security="s"/>
         <peripheral name="GPT8.CPU0" group="GPT" security="s"/>
         <peripheral name="DMA_DMAC2.CPU0" group="DMA_DMAC" security="s"/>
+        <peripheral name="DMA_DMAC3.CPU0" group="DMA_DMAC" security="s"/>
         <peripheral name="USB_FS.CPU0" security="s"/>
         <peripheral name="USB_HS.CPU0" security="s"/>
         <peripheral name="ICU.CPU0">
@@ -54,6 +53,7 @@
             <slot name="IRQ18.CPU0" secure="true"/>
             <slot name="IRQ19.CPU0" secure="true"/>
             <slot name="IRQ20.CPU0" secure="true"/>
+            <slot name="IRQ21.CPU0" secure="true"/>
         </peripheral>
     </partition>
 </azone>
