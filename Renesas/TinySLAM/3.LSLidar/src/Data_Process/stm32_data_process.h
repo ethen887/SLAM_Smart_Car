@@ -29,6 +29,8 @@ fsp_err_t stm32_data_process_init(void);
 uint32_t stm32_data_snapshot(void);
 void Stm32_Data_Process(uint32_t snapshot);
 extern volatile uint32_t g_stm32_blocks_overwritten;
+extern volatile uint32_t g_stm32_remote_frames; /**< CRC 有效的 START 帧数，包含同一事件的重复帧。 */
+extern volatile uint32_t g_stm32_remote_press_id; /**< 最近从 STM32 收到的 START 序号。 */
 bool stm32_pose_at(uint64_t receive_us, Stm32PoseDef *pose);
 
 // ★ 暴露给主循环建图使用的全局最新位姿

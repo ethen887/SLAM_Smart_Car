@@ -43,5 +43,21 @@ int main(void)
     Host_EncodeOdometry(odom, 123, 1.0f, 2.0f, 0.5f);
     check_splits(lidar, sizeof(lidar), lidar_n10_find_frame);
     check_splits(odom, sizeof(odom), stm32_pose_find_frame);
-    puts("all radar and odometry frame split positions passed");
+    uint8_t start[HOST_ODOM_FRAME_SIZE], found[HOST_ODOM_FRAME_SIZE];
+    uint32_t id, ms;
+    size_t offset;
+    Host_EncodeRemoteStart(start, 0x04030201U, 0x08070605U);
+    check_splits(start, sizeof(start), stm32_find_frame);
+    assert(stm32_parse_remote_start(start, &id, &ms));
+    assert(id == 0x04030201U && ms == 0x08070605U);
+    assert(!stm32_pose_find_frame(start, sizeof(start), found, &offset));
+    uint8_t mixed[2 * HOST_ODOM_FRAME_SIZE];
+    memcpy(mixed, start, sizeof(start));
+    memcpy(mixed + sizeof(start), odom, sizeof(odom));
+    assert(stm32_find_frame(mixed, sizeof(mixed), found, &offset) && offset == 0);
+    mixed[8] ^= 1U;
+    assert(!stm32_parse_remote_start(mixed, &id, &ms));
+    assert(stm32_find_frame(mixed, sizeof(mixed), found, &offset) && offset == sizeof(start));
+    assert(memcmp(found, odom, sizeof(odom)) == 0);
+    puts("radar, odometry and remote START frame tests passed");
 }

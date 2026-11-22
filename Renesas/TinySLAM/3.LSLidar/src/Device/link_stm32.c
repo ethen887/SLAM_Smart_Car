@@ -22,13 +22,14 @@ static uint16_t crc16_modbus(const uint8_t *data, size_t len) {
  * @param[in] frame 候选帧的首地址。
  * @param[in] length 候选帧的字节数，必须为 STM32_FRAME_SIZE。
  * @return true 表示数据帧有效，否则返回 false。
- * @note 使用 CRC-16/MODBUS 进行校验，包含帧头和帧尾。
+ * @note 帧头和帧尾单独检查，CRC-16/MODBUS 覆盖类型、长度及负载。
  */
-static bool stm32_pose_frame_valid(const uint8_t *frame, size_t length)
+static bool stm32_frame_valid(const uint8_t *frame, size_t length)
 {
     if ((frame == NULL) || (length != STM32_FRAME_SIZE) ||
         (frame[0] != HEADER_0_stm32) || (frame[1] != HEADER_1_stm32) ||
-        (frame[2] != 0x01) || (frame[3] != Length_stm32) || (frame[4] != 0x00) ||
+        (frame[2] != STM32_TYPE_ODOMETRY && frame[2] != STM32_TYPE_REMOTE_START) ||
+        (frame[3] != Length_stm32) || (frame[4] != 0x00) ||
         (frame[23] != 0x0D) || (frame[24] != 0x0A)) {
         return false;
     }
@@ -45,19 +46,23 @@ static bool stm32_pose_frame_valid(const uint8_t *frame, size_t length)
  * @param[in]  data         待搜索的数据缓冲区。
  * @param[in]  length       数据缓冲区长度，单位为字节。
  * @param[out] frame_out    用于保存找到的数据帧的输出缓冲区。
+ * @param[out] offsets      用于保存找到的数据帧在输入缓冲区中的偏移量。
+ * @param[in]  pose_only    为 true 时仅查找里程计帧。
  * @return true  找到并复制了有效数据帧。
  * @return false 输入参数无效或未找到有效数据帧。
- * @param[out] offsets      用于保存找到的数据帧在输入缓冲区中的偏移量。
  */
-bool stm32_pose_find_frame(const uint8_t *data, size_t length, uint8_t *frame_out, size_t *offsets)
+static bool find_frame(const uint8_t *data, size_t length, uint8_t *frame_out,
+                       size_t *offsets, bool pose_only)
 {
-    if ((data == NULL) || (frame_out == NULL) || (length < STM32_FRAME_SIZE)) {
+    if (!data || !frame_out || !offsets || length < STM32_FRAME_SIZE) {
         return false;
     }
     *offsets = 0;
     /* 每个候选位置必须至少剩下 25 字节，避免越界读取。 */
     for (size_t offset = 0; offset <= length - STM32_FRAME_SIZE; offset++) {
-        if (stm32_pose_frame_valid(&data[offset], STM32_FRAME_SIZE)) {
+        const uint8_t *candidate = data + offset;
+        if ((!pose_only || candidate[2] == STM32_TYPE_ODOMETRY) &&
+            stm32_frame_valid(candidate, STM32_FRAME_SIZE)) {
             /* memmove 允许输入与输出缓冲区重叠。 */
             memmove(frame_out, &data[offset], STM32_FRAME_SIZE);
             *offsets = offset;
@@ -65,6 +70,25 @@ bool stm32_pose_find_frame(const uint8_t *data, size_t length, uint8_t *frame_ou
         }
     }
     return false;
+}
+
+bool stm32_pose_find_frame(const uint8_t *data, size_t length, uint8_t *frame_out, size_t *offsets)
+{
+    return find_frame(data, length, frame_out, offsets, true);
+}
+
+bool stm32_find_frame(const uint8_t *data, size_t length, uint8_t *frame_out, size_t *offsets)
+{
+    return find_frame(data, length, frame_out, offsets, false);
+}
+
+bool stm32_parse_remote_start(const uint8_t *frame, uint32_t *press_id, uint32_t *timestamp_ms)
+{
+    if (!press_id || !timestamp_ms || !stm32_frame_valid(frame, STM32_FRAME_SIZE) ||
+        frame[2] != STM32_TYPE_REMOTE_START) return false;
+    memcpy(press_id, frame + 5, sizeof(*press_id));
+    memcpy(timestamp_ms, frame + 9, sizeof(*timestamp_ms));
+    return true;
 }
 
 /**
@@ -75,7 +99,8 @@ bool stm32_pose_find_frame(const uint8_t *data, size_t length, uint8_t *frame_ou
  */
 Stm32PoseDef *stm32_pose_parse_frame(const uint8_t *frame, Stm32PoseDef *pose_out)
 {
-    if ((pose_out == NULL) || !stm32_pose_frame_valid(frame, STM32_FRAME_SIZE)) {
+    if (!pose_out || !stm32_frame_valid(frame, STM32_FRAME_SIZE) ||
+        frame[2] != STM32_TYPE_ODOMETRY) {
         return NULL;
     }
 

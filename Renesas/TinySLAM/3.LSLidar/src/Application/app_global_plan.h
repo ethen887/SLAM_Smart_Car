@@ -23,8 +23,8 @@ typedef struct {
  * @param[in,out] workspace 本次调用独占的预分配工作区。
  * @param[out] path 生成的路径。失败时有效输出的点数为零。
  * @return 成功返回 NAV_PLAN_OK，其余结果参见 NavPlanResult。
- * @warning 本接口同步计算，仅生成路径。应在车辆停止时从建图线程调用，或由调用方
- *          保证位姿和地图的访问安全。计算应在 20 ms 周期循环之外进行。
+ * @warning 本接口同步计算，仅生成路径。应在车辆制动且无跟踪任务时从建图线程
+ *          调用，避免规划耗时占用运行中的底盘控制周期。
  */
 NavPlanResult App_GlobalPlan_Create(Pose goal, const NavCostmapConfig *cost_config,
                                     const NavFnConfig *plan_config,

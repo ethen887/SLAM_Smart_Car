@@ -15,7 +15,11 @@ Cell g_build_map_cells[MAP_WIDTH * MAP_HEIGHT];
 static uint8_t map_marks[MAP_WIDTH * MAP_HEIGHT];
 uint8_t g_build_map_obstacles[MAP_WIDTH * MAP_HEIGHT];
 #define close_scratch map_marks
-static uint32_t wall_queue[MAP_WIDTH * MAP_HEIGHT];
+/** @brief 连通域分类与规划互斥，按当前用途以原类型访问。 */
+static union {
+    uint32_t wall_queue[BUILD_MAP_CELLS];
+    float potential[BUILD_MAP_CELLS];
+} map_scratch;
 static Pose last_map_pose;
 static bool have_map_pose;
 static float map_anchor_x, map_anchor_y;
@@ -27,6 +31,11 @@ float g_lidar_offset_x_m = 0.0f, g_lidar_offset_y_m = 0.0f, g_lidar_yaw_rad = 0.
 /* N10 reports clockwise-positive angles; the map uses counterclockwise-positive. */
 float g_lidar_angle_sign = -1.0f;
 static bool map_ready;
+
+void App_BuildMap_BorrowPlanBuffers(BuildMapPlanBuffers *buffers)
+{
+    *buffers = (BuildMapPlanBuffers){g_build_map_obstacles, map_marks, map_scratch.potential};
+}
 
 /* Authoritative binary snapshot: versioned header, pose, packed 2-bit cells,
  * and CRC. 0=unknown, 1=free, 2=obstacle, 3=wall candidate. */
@@ -40,7 +49,7 @@ void App_BuildMap_PublishSnapshot(void)
     if (map_close_obstacles(&g_build_map, g_build_map_obstacles,
                                           close_scratch, MAP_WIDTH * MAP_HEIGHT)) return;
     if (map_classify_walls(g_build_map_obstacles, MAP_WIDTH, MAP_HEIGHT, g_build_map.c.resolution,
-                           close_scratch, wall_queue, MAP_WIDTH * MAP_HEIGHT)) return;
+                           close_scratch, map_scratch.wall_queue, MAP_WIDTH * MAP_HEIGHT)) return;
     packet[0] = 0xa5; packet[1] = 0x5a;
     packet[2] = (uint8_t)PAYLOAD_SIZE; packet[3] = (uint8_t)(PAYLOAD_SIZE >> 8);
     packet[4] = 'M'; packet[5] = 5;

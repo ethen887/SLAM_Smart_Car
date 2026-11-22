@@ -20,10 +20,13 @@ int main(void) {
     send(1,.1f,.4f); assert(App_NavigationMotion_Update());
     assert(fabsf(left-(.1f-.03f)/.03f)<.001f);
     assert(fabsf(right-(.1f+.03f)/.03f)<.001f);
-    now=351; App_NavigationMotion_Update(); assert(brakes==1);
+    now=NAVIGATION_MOTION_TIMEOUT_MS;
+    App_NavigationMotion_Update(); assert(brakes==0 && g_navigation_motion_timeout_cycles==0);
+    ++now; App_NavigationMotion_Update(); assert(brakes==1 && g_navigation_motion_timeout_cycles==1);
     send(1,.1f,0); App_NavigationMotion_Update(); assert(brakes==1);
     send(2,0,0); App_NavigationMotion_Update(); assert(brakes==2);
     send(1,NAN,0); App_NavigationMotion_Update(); assert(brakes==3);
+    assert(g_navigation_motion_timeout_cycles==1);
     send(0,0,0); assert(!App_NavigationMotion_Update());
     puts("STM32 navigation motion watchdog/mailbox tests passed");
 }

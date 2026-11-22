@@ -9,4 +9,5 @@ extern UART_HandleTypeDef huart1;
 HAL_StatusTypeDef HAL_UARTEx_ReceiveToIdle_DMA(UART_HandleTypeDef *, uint8_t *, uint16_t);
 HAL_StatusTypeDef HAL_UART_Transmit_DMA(UART_HandleTypeDef *, uint8_t *, uint16_t);
 HAL_StatusTypeDef HAL_UART_AbortReceive(UART_HandleTypeDef *);
+uint32_t HAL_GetTick(void);
 #endif
