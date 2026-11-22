@@ -93,8 +93,8 @@
     <node id="board.clock.pclke.display" option="board.clock.pclke.display.value"/>
     <node id="board.clock.bclk.div" option="board.clock.bclk.div.8"/>
     <node id="board.clock.bclk.display" option="board.clock.bclk.display.value"/>
-    <node id="board.clock.bclka.source" option="board.clock.bclka.source.disabled"/>
-    <node id="board.clock.bclka.div" option="board.clock.bclka.div.6"/>
+    <node id="board.clock.bclka.source" option="board.clock.bclka.source.pll1r"/>
+    <node id="board.clock.bclka.div" option="board.clock.bclka.div.4"/>
     <node id="board.clock.bclka.display" option="board.clock.bclka.display.value"/>
     <node id="board.clock.sdclkout.enable" option="board.clock.sdclkout.enable.enabled"/>
     <node id="board.clock.sdclkout.display" option="board.clock.sdclkout.display.value"/>
@@ -153,29 +153,103 @@
       <configSetting altId="jtag_fslash_swd.tdi.p208" configurationId="jtag_fslash_swd.tdi" peripheral="JTAG/SWD"/>
       <configSetting altId="jtag_fslash_swd.tdo.p209" configurationId="jtag_fslash_swd.tdo" peripheral="JTAG/SWD"/>
       <configSetting altId="jtag_fslash_swd.tms.p210" configurationId="jtag_fslash_swd.tms" peripheral="JTAG/SWD"/>
+      <configSetting altId="p112.gpio_mode.gpio_mode_peripheral" configurationId="p112.gpio_mode"/>
+      <configSetting altId="p113.gpio_mode.gpio_mode_peripheral" configurationId="p113.gpio_mode"/>
+      <configSetting altId="p114.gpio_mode.gpio_mode_peripheral" configurationId="p114.gpio_mode"/>
+      <configSetting altId="p115.gpio_mode.gpio_mode_peripheral" configurationId="p115.gpio_mode"/>
       <configSetting altId="p208.gpio_mode.gpio_mode_peripheral" configurationId="p208.gpio_mode"/>
       <configSetting altId="p209.gpio_mode.gpio_mode_peripheral" configurationId="p209.gpio_mode"/>
       <configSetting altId="p210.gpio_mode.gpio_mode_peripheral" configurationId="p210.gpio_mode"/>
       <configSetting altId="p211.gpio_mode.gpio_mode_peripheral" configurationId="p211.gpio_mode"/>
+      <configSetting altId="p300.gpio_mode.gpio_mode_peripheral" configurationId="p300.gpio_mode"/>
+      <configSetting altId="p301.gpio_mode.gpio_mode_peripheral" configurationId="p301.gpio_mode"/>
+      <configSetting altId="p302.gpio_mode.gpio_mode_peripheral" configurationId="p302.gpio_mode"/>
       <configSetting altId="p407.gpio_mode.gpio_mode_peripheral" configurationId="p407.gpio_mode"/>
+      <configSetting altId="p503.gpio_mode.gpio_mode_peripheral" configurationId="p503.gpio_mode"/>
+      <configSetting altId="p504.gpio_mode.gpio_mode_peripheral" configurationId="p504.gpio_mode"/>
+      <configSetting altId="p505.gpio_mode.gpio_mode_peripheral" configurationId="p505.gpio_mode"/>
+      <configSetting altId="p506.gpio_mode.gpio_mode_peripheral" configurationId="p506.gpio_mode"/>
+      <configSetting altId="p507.gpio_mode.gpio_mode_peripheral" configurationId="p507.gpio_mode"/>
+      <configSetting altId="p508.gpio_mode.gpio_mode_peripheral" configurationId="p508.gpio_mode"/>
+      <configSetting altId="p509.gpio_mode.gpio_mode_peripheral" configurationId="p509.gpio_mode"/>
+      <configSetting altId="p510.gpio_mode.gpio_mode_peripheral" configurationId="p510.gpio_mode"/>
       <configSetting altId="p602.gpio_mode.gpio_mode_peripheral" configurationId="p602.gpio_mode"/>
       <configSetting altId="p603.gpio_mode.gpio_mode_peripheral" configurationId="p603.gpio_mode"/>
+      <configSetting altId="p608.gpio_mode.gpio_mode_peripheral" configurationId="p608.gpio_mode"/>
+      <configSetting altId="p609.gpio_mode.gpio_mode_peripheral" configurationId="p609.gpio_mode"/>
+      <configSetting altId="p610.gpio_mode.gpio_mode_peripheral" configurationId="p610.gpio_mode"/>
+      <configSetting altId="p611.gpio_mode.gpio_mode_peripheral" configurationId="p611.gpio_mode"/>
+      <configSetting altId="p612.gpio_mode.gpio_mode_peripheral" configurationId="p612.gpio_mode"/>
+      <configSetting altId="p613.gpio_mode.gpio_mode_peripheral" configurationId="p613.gpio_mode"/>
+      <configSetting altId="p614.gpio_mode.gpio_mode_peripheral" configurationId="p614.gpio_mode"/>
       <configSetting altId="p706.gpio_mode.gpio_mode_peripheral" configurationId="p706.gpio_mode"/>
       <configSetting altId="p707.gpio_mode.gpio_mode_peripheral" configurationId="p707.gpio_mode"/>
       <configSetting altId="p714.gpio_mode.gpio_mode_peripheral" configurationId="p714.gpio_mode"/>
       <configSetting altId="p715.gpio_mode.gpio_mode_peripheral" configurationId="p715.gpio_mode"/>
-      <configSetting altId="p801.gpio_mode.gpio_mode_peripheral" configurationId="p801.gpio_mode"/>
-      <configSetting altId="p802.gpio_mode.gpio_mode_peripheral" configurationId="p802.gpio_mode"/>
+      <configSetting altId="p813.gpio_mode.gpio_mode_peripheral" configurationId="p813.gpio_mode"/>
       <configSetting altId="p814.gpio_mode.gpio_mode_peripheral" configurationId="p814.gpio_mode"/>
       <configSetting altId="p815.gpio_mode.gpio_mode_peripheral" configurationId="p815.gpio_mode"/>
+      <configSetting altId="pa00.gpio_mode.gpio_mode_peripheral" configurationId="pa00.gpio_mode"/>
+      <configSetting altId="pa01.gpio_mode.gpio_mode_peripheral" configurationId="pa01.gpio_mode"/>
+      <configSetting altId="pa02.gpio_mode.gpio_mode_peripheral" configurationId="pa02.gpio_mode"/>
+      <configSetting altId="pa03.gpio_mode.gpio_mode_peripheral" configurationId="pa03.gpio_mode"/>
+      <configSetting altId="pa04.gpio_mode.gpio_mode_peripheral" configurationId="pa04.gpio_mode"/>
+      <configSetting altId="pa05.gpio_mode.gpio_mode_peripheral" configurationId="pa05.gpio_mode"/>
+      <configSetting altId="pa06.gpio_mode.gpio_mode_peripheral" configurationId="pa06.gpio_mode"/>
+      <configSetting altId="pa08.gpio_mode.gpio_mode_peripheral" configurationId="pa08.gpio_mode"/>
+      <configSetting altId="pa09.gpio_mode.gpio_mode_peripheral" configurationId="pa09.gpio_mode"/>
+      <configSetting altId="pa10.gpio_mode.gpio_mode_peripheral" configurationId="pa10.gpio_mode"/>
+      <configSetting altId="pa11.gpio_mode.gpio_mode_peripheral" configurationId="pa11.gpio_mode"/>
+      <configSetting altId="pa12.gpio_mode.gpio_mode_peripheral" configurationId="pa12.gpio_mode"/>
+      <configSetting altId="pa13.gpio_mode.gpio_mode_peripheral" configurationId="pa13.gpio_mode"/>
+      <configSetting altId="pa14.gpio_mode.gpio_mode_peripheral" configurationId="pa14.gpio_mode"/>
+      <configSetting altId="pa15.gpio_mode.gpio_mode_peripheral" configurationId="pa15.gpio_mode"/>
+      <configSetting altId="pd00.gpio_mode.gpio_mode_peripheral" configurationId="pd00.gpio_mode"/>
       <configSetting altId="sci0.rxd0.p602" configurationId="sci0.rxd0" isUsedByDriver="true" peripheral="SCI0"/>
       <configSetting altId="sci0.txd0.p603" configurationId="sci0.txd0" isUsedByDriver="true" peripheral="SCI0"/>
       <configSetting altId="sci1.rxd1.p706" configurationId="sci1.rxd1" isUsedByDriver="true" peripheral="SCI1"/>
       <configSetting altId="sci1.txd1.p707" configurationId="sci1.txd1" isUsedByDriver="true" peripheral="SCI1"/>
-      <configSetting altId="sci2.rxd2.p802" configurationId="sci2.rxd2" peripheral="SCI2"/>
-      <configSetting altId="sci2.txd2.p801" configurationId="sci2.txd2" peripheral="SCI2"/>
       <configSetting altId="sci4.rxd4.p715" configurationId="sci4.rxd4" isUsedByDriver="true" peripheral="SCI4"/>
       <configSetting altId="sci4.txd4.p714" configurationId="sci4.txd4" isUsedByDriver="true" peripheral="SCI4"/>
+      <configSetting altId="sdram.a1.pa04" configurationId="sdram.a1" peripheral="SDRAM"/>
+      <configSetting altId="sdram.a10.p507" configurationId="sdram.a10" peripheral="SDRAM"/>
+      <configSetting altId="sdram.a11.p508" configurationId="sdram.a11" peripheral="SDRAM"/>
+      <configSetting altId="sdram.a12.p509" configurationId="sdram.a12" peripheral="SDRAM"/>
+      <configSetting altId="sdram.a13.p510" configurationId="sdram.a13" peripheral="SDRAM"/>
+      <configSetting altId="sdram.a14.p608" configurationId="sdram.a14" peripheral="SDRAM"/>
+      <configSetting altId="sdram.a15.pd00" configurationId="sdram.a15" peripheral="SDRAM"/>
+      <configSetting altId="sdram.a2.pa03" configurationId="sdram.a2" peripheral="SDRAM"/>
+      <configSetting altId="sdram.a3.pa02" configurationId="sdram.a3" peripheral="SDRAM"/>
+      <configSetting altId="sdram.a4.pa01" configurationId="sdram.a4" peripheral="SDRAM"/>
+      <configSetting altId="sdram.a5.pa00" configurationId="sdram.a5" peripheral="SDRAM"/>
+      <configSetting altId="sdram.a6.p503" configurationId="sdram.a6" peripheral="SDRAM"/>
+      <configSetting altId="sdram.a7.p504" configurationId="sdram.a7" peripheral="SDRAM"/>
+      <configSetting altId="sdram.a8.p505" configurationId="sdram.a8" peripheral="SDRAM"/>
+      <configSetting altId="sdram.a9.p506" configurationId="sdram.a9" peripheral="SDRAM"/>
+      <configSetting altId="sdram.cas.pa09" configurationId="sdram.cas" peripheral="SDRAM"/>
+      <configSetting altId="sdram.cke.pa06" configurationId="sdram.cke" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq0.p302" configurationId="sdram.dq0" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq1.p301" configurationId="sdram.dq1" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq10.pa13" configurationId="sdram.dq10" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq11.pa14" configurationId="sdram.dq11" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq12.p610" configurationId="sdram.dq12" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq13.p611" configurationId="sdram.dq13" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq14.p612" configurationId="sdram.dq14" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq15.p613" configurationId="sdram.dq15" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq2.p300" configurationId="sdram.dq2" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq3.p112" configurationId="sdram.dq3" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq4.p113" configurationId="sdram.dq4" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq5.p114" configurationId="sdram.dq5" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq6.p115" configurationId="sdram.dq6" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq7.p609" configurationId="sdram.dq7" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq8.pa11" configurationId="sdram.dq8" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dq9.pa12" configurationId="sdram.dq9" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dqm0.p614" configurationId="sdram.dqm0" peripheral="SDRAM"/>
+      <configSetting altId="sdram.dqm1.pa05" configurationId="sdram.dqm1" peripheral="SDRAM"/>
+      <configSetting altId="sdram.ras.pa10" configurationId="sdram.ras" peripheral="SDRAM"/>
+      <configSetting altId="sdram.sdclk.pa15" configurationId="sdram.sdclk" peripheral="SDRAM"/>
+      <configSetting altId="sdram.sdcs.p813" configurationId="sdram.sdcs" peripheral="SDRAM"/>
+      <configSetting altId="sdram.we.pa08" configurationId="sdram.we" peripheral="SDRAM"/>
       <configSetting altId="usbfs.usb_dm.p815" configurationId="usbfs.usb_dm" isUsedByDriver="true" peripheral="USB FS"/>
       <configSetting altId="usbfs.usb_dp.p814" configurationId="usbfs.usb_dp" isUsedByDriver="true" peripheral="USB FS"/>
       <configSetting altId="usbfs.usb_vbus.p407" configurationId="usbfs.usb_vbus" isUsedByDriver="true" peripheral="USB FS"/>

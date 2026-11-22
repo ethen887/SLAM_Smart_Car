@@ -10,7 +10,11 @@
 #define DEGREE_001_TO_RAD (0.017453292519943295f / 100.0f)
 
 Map g_build_map;
-Cell g_build_map_cells[MAP_WIDTH * MAP_HEIGHT];
+/* 栅格地图本体 300x300x12 B = 1.08 MB，是整个工程里最大的一块缓冲，
+ * 放到片外 SDRAM（起始 0x68000000），把片内 RAM 让给 USB 与 RTOS。
+ * 使用前必须已调用 R_BSP_SdramInit(true)（见 new_thread0_entry.c）；
+ * map_init() 内部 map_reset() 会 memset 清空整块空间，无需手动初始化。 */
+Cell *const g_build_map_cells = (Cell *)0x68000000UL;
 /* Same thread: frame marks and snapshot scratch never overlap in use. */
 static uint8_t map_marks[MAP_WIDTH * MAP_HEIGHT];
 uint8_t g_build_map_obstacles[MAP_WIDTH * MAP_HEIGHT];

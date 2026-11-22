@@ -176,10 +176,12 @@ void App_Vision_Poll(void)
             s_state = VISION_SEARCH;
         }
         if (g_k230_vision_valid) {
+            /* 目标最后出现在画面左侧（offset_x < 0）就左转（w 正），
+             * 在右侧就右转（w 负）；写反了会越找越远。 */
             if (g_k230_offset_x < -VISION_X_DEADBAND) {
-                s_search_dir = -1;
-            } else if (g_k230_offset_x > VISION_X_DEADBAND) {
                 s_search_dir = 1;
+            } else if (g_k230_offset_x > VISION_X_DEADBAND) {
+                s_search_dir = -1;
             }
         }
         App_Navigation_VisionDrive(0.0f, (float)s_search_dir * VISION_SEARCH_W);

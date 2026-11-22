@@ -14,7 +14,7 @@
 
 /** 地图及统计量保留在 RAM 中，可通过调试器观察。 */
 extern Map g_build_map;
-extern Cell g_build_map_cells[BUILD_MAP_CELLS];
+extern Cell *const g_build_map_cells; /**< 栅格地图本体，1.08 MB，放在片外 SDRAM 0x68000000。 */
 extern uint8_t g_build_map_obstacles[BUILD_MAP_CELLS]; /**< 快照生成时保存障碍分类，规划时复用。 */
 extern uint32_t g_build_map_frames;
 extern uint32_t g_build_map_skipped_no_pose;

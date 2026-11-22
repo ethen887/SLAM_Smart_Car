@@ -1,4 +1,4 @@
-#Sun Nov 22 16:19:54 CST 2026
+#Sun Nov 22 20:36:29 CST 2026
 =\=\=\=\=\=\=
 <<<<<<<=HEAD
 >>>>>>>=fc08dbe8eebf969078cb18609fe74a36e599ebc0
@@ -41,7 +41,7 @@ com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#Middleware\#\#all\#\#rm_fre
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#Middleware\#\#all\#\#rm_freertos_port\#\#\#\#6.5.0/libraries=
 com.renesas.cdt.ddsc.project.standalone.projectgenerationoptions/ideProjectType=CMAKE
 com.renesas.cdt.ddsc.project.standalone.projectgenerationoptions/isCpp=false
-com.renesas.cdt.ddsc.settingseditor/com.renesas.cdt.ddsc.settingseditor.active_page=SWPConfigurator
+com.renesas.cdt.ddsc.settingseditor/com.renesas.cdt.ddsc.settingseditor.active_page=PinConfiguration
 com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.basic_on_usb.510900471=false
 com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.pcdc_on_usb.65660588=false
 com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.uart_on_sci_b_uart.1280751574=false
