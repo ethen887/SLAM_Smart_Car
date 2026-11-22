@@ -8,5 +8,8 @@
         "ARM_TOOLCHAIN_PATH": "${env:ARM_GCC_TOOLCHAIN_PATH}",
         "RENESAS_IDE": "e2studio"
     },
-    "cmake.copyCompileCommands": "${workspaceFolder}/TinySLAM/3.LSLidar/compile_commands.json"
+    "cmake.copyCompileCommands": "${workspaceFolder}/TinySLAM/3.LSLidar/compile_commands.json",
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/TinySLAM/3.LSLidar/compile_commands.json"
 }
