@@ -10,6 +10,7 @@
 #define RX_DMA_SIZE 128U     /**< USART1 循环接收 DMA 缓冲区大小，单位：字节。 */
 #define RX_RING_SIZE 256U    /**< 接收软件环形缓冲区大小，预留一个空槽。 */
 #define RX_PARSE_BUDGET 128U /**< 每次轮询最多解析的接收字节数。 */
+#define REMOTE_FRAME_COPIES 4U /**< 每次事件发送 100 字节，覆盖瑞萨一个 DMA 接收块。 */
 
 volatile HostCommStats host_comm_stats;
 /* 运动任务写入队列，通信任务取出；跨任务访问使用临界区保护。 */
@@ -27,6 +28,9 @@ static volatile uint8_t rx_restart;
 static uint8_t parse_buffer[HOST_MAX_PAYLOAD + HOST_FRAME_OVERHEAD];
 static uint16_t parse_length;
 static uint32_t seen_rx_overflows;
+static uint8_t remote_tx_buffer[REMOTE_FRAME_COPIES * HOST_ODOM_FRAME_SIZE]; /**< 独立的 START DMA 缓冲。 */
+static uint32_t remote_press_id, remote_press_ms; /**< 手柄任务发布的最近事件。 */
+static uint32_t sent_press_id; /**< 通信任务已提交到 DMA 的最近事件。 */
 
 /**
  * @brief 编码并保存一条有效里程计，队列满时丢弃最旧帧。
@@ -48,6 +52,58 @@ void App_HostComm_PushOdometry(uint32_t timestamp_ms, const OdometryData_t *data
     memcpy(tx_ring[index], frame, sizeof(frame));
     ++tx_count;
     taskEXIT_CRITICAL();
+}
+
+void App_HostComm_SampleRemoteStart(bool valid, bool pressed)
+{
+    static bool armed; /**< 确认释放后，允许下一次按下触发。 */
+    static bool previous; /**< 上一次有效采样的按键状态。 */
+    static bool have_previous; /**< 无效帧中断连续采样。 */
+    if (!valid) {
+        armed = false;
+        have_previous = false;
+        return;
+    }
+    if (have_previous && pressed == previous) {
+        if (!pressed) armed = true;
+        else if (armed) {
+            armed = false;
+            taskENTER_CRITICAL();
+            ++remote_press_id;
+            remote_press_ms = HAL_GetTick();
+            taskEXIT_CRITICAL();
+        }
+    }
+    previous = pressed;
+    have_previous = true;
+}
+
+/**
+ * @brief 优先发送 START 事件，并在 DMA 忙或启动失败时保留待发序号。
+ * @return 本次存在待发事件时返回 true，里程计批次留待后续轮询。
+ * @note 同一事件重复发送，瑞萨按序号和时间戳去重。无需有效里程计即可发送。
+ */
+static bool send_remote_start(void)
+{
+    taskENTER_CRITICAL();
+    uint32_t press_id = remote_press_id;
+    uint32_t press_ms = remote_press_ms;
+    taskEXIT_CRITICAL();
+    if (press_id == sent_press_id) return false;
+
+    Host_EncodeRemoteStart(remote_tx_buffer, press_id, press_ms);
+    for (unsigned i = 1; i < REMOTE_FRAME_COPIES; ++i) {
+        memcpy(remote_tx_buffer + i * HOST_ODOM_FRAME_SIZE, remote_tx_buffer, HOST_ODOM_FRAME_SIZE);
+    }
+    tx_busy = 1;
+    if (HAL_UART_Transmit_DMA(&huart1, remote_tx_buffer, sizeof(remote_tx_buffer)) == HAL_OK) {
+        sent_press_id = press_id;
+        ++host_comm_stats.tx_batches;
+    } else {
+        tx_busy = 0;
+        ++host_comm_stats.tx_start_errors;
+    }
+    return true;
 }
 
 /** @brief 启动接收至空闲事件的循环 DMA；失败时请求任务稍后重试。 */
@@ -194,6 +250,7 @@ void App_HostComm_Poll(void)
         parse_byte(byte);
     }
     if (tx_busy) return;
+    if (send_remote_start()) return;
     if (!tx_pending) {
         taskENTER_CRITICAL();
         if (tx_count >= TX_BATCH_FRAMES) {

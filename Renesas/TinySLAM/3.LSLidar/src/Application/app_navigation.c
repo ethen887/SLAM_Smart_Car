@@ -23,6 +23,9 @@ static uint8_t drive_frame[18]; /**< 底盘串口异步发送缓冲。 */
 static volatile bool tx_busy; /**< 串口发送占用标志，由发送回调释放。 */
 static bool tx_ready, prepared; /**< 串口回调就绪标志及完整返程路线就绪标志。 */
 static NavigationState resume_state; /**< 临时暂停前的状态，用于自动恢复。 */
+static bool remote_run; /**< 当前自主运行由遥控器启动，运行期间无需电脑心跳。 */
+static bool remote_press_seen; /**< 是否已经接收过 STM32 的 START 事件。 */
+static uint32_t remote_press_id, remote_press_ms; /**< 最近处理的事件序号及 STM32 时间戳。 */
 /** @brief 接入搜索采用 100×100 粗栅格，节点碰撞检查使用当前建图分辨率。 */
 #define JOIN_WIDTH 100 /**< 接入搜索栅格的列数。 */
 #define JOIN_HEIGHT 100 /**< 接入搜索栅格的行数。 */
@@ -106,6 +109,7 @@ static bool drive(uint8_t mode, float v, float w)
 static void halt(NavigationState state, NavigationError error)
 {
     recorder.is_recording=false;
+    remote_run=false;
     g_navigation_state=state; g_navigation_error=error;
     drive(2,0,0); /**< 周期接口会重试制动，STM32 另有命令超时制动。 */
 }
@@ -124,24 +128,28 @@ static void status(void)
     UsbSerial_send(f,sizeof(f));
 }
 /**
- * @brief 执行通过协议校验的电脑导航命令。
+ * @brief 执行通过协议校验的导航命令。
  * @param[in] cmd 导航命令编号。
  * @param[in] now 当前时间戳，单位为微秒。
+ * @param[in] from_remote 命令是否来自板间串口的遥控器事件。
  * @details 开始录制时记录返程终点，结束录制后反转路线；运行命令先生成接入路线。
  *          手动控制和急停不要求有效位姿；心跳仅更新时间，不改变运行状态。 
  */
-static void command(uint8_t cmd, uint64_t now)
+static void command(uint8_t cmd, uint64_t now, bool from_remote)
 {
     Pose pose;
     if (cmd==NAV_HEARTBEAT) { heartbeat=now; return; }
-    last_command=cmd;
+    last_command=from_remote ? NAV_REMOTE_START : cmd;
     if (cmd==NAV_MANUAL) {
-        recorder.is_recording=false; join_count=0;
+        recorder.is_recording=false; join_count=0; remote_run=false;
         g_navigation_state=NAV_IDLE; g_navigation_error=NAV_OK;
         drive(0,0,0); status(); return;
     }
     if (cmd==NAV_ESTOP) { halt(NAV_STOPPED,NAV_OK); status(); return; }
     if (cmd!=NAV_RECORD_START && cmd!=NAV_RECORD_END && cmd!=NAV_RUN) return;
+    if (!from_remote && cmd==NAV_RUN && remote_run) {
+        g_navigation_error=NAV_BAD_STATE; status(); return;
+    }
     if ((cmd==NAV_RECORD_START && (g_navigation_state==NAV_RUNNING || g_navigation_state==NAV_PAUSED)) ||
         (cmd==NAV_RECORD_END && g_navigation_state!=NAV_RECORDING && !(g_navigation_state==NAV_PAUSED && resume_state==NAV_RECORDING)) ||
         (cmd==NAV_RUN && g_navigation_state==NAV_RECORDING)) {
@@ -162,13 +170,39 @@ static void command(uint8_t cmd, uint64_t now)
         if (!prepared || g_nav_path.count<2) {
             g_navigation_error=NAV_BAD_STATE; status(); return;
         }
-        if (g_navigation_state==NAV_DONE) target=0;
+        if (from_remote || g_navigation_state==NAV_DONE) target=0;
         if (target>=(unsigned)g_nav_path.count) target=0;
         NavigationError error=prepare_join(pose);
         if (error!=NAV_OK) { halt(NAV_STOPPED,error); status(); return; }
+        remote_run=from_remote;
         g_navigation_state=NAV_RUNNING; heartbeat=now;
     }
     g_navigation_error=NAV_OK; status();
+}
+
+void App_Navigation_OnRemoteStart(uint32_t press_id, uint32_t timestamp_ms)
+{
+    bool same_session = remote_press_seen && (int32_t)(timestamp_ms - remote_press_ms) >= 0;
+    if (same_session && press_id == remote_press_id && timestamp_ms == remote_press_ms) return;
+    bool in_order = press_id == (same_session ? remote_press_id + 1U : 1U);
+    remote_press_seen = true;
+    remote_press_id = press_id;
+    remote_press_ms = timestamp_ms;
+
+    uint64_t now = gpt_get_timestamp_us();
+    if (g_navigation_state == NAV_RUNNING ||
+        (g_navigation_state == NAV_PAUSED && resume_state == NAV_RUNNING)) {
+        command(NAV_ESTOP, now, true);
+        return;
+    }
+    if (!in_order) {
+        /** @brief 丢失中间按键时保持原状态，避免将一次停止操作误当作启动。 */
+        last_command = NAV_REMOTE_START;
+        g_navigation_error = NAV_TRANSPORT;
+        status();
+        return;
+    }
+    command(NAV_RUN, now, true);
 }
 /**
  * @brief 检查指定位置的圆形车体足迹是否被占据或超出地图。
@@ -287,6 +321,7 @@ void App_Navigation_Init(void)
     g_navigation_state=NAV_IDLE; g_navigation_error=NAV_OK;
     target=0; input_size=0; join_count=0; prepared=false;
     heartbeat=last_drive=last_status=0; tx_busy=false; last_command=sequence=0;
+    remote_run=false; remote_press_seen=false;
     tx_ready=R_SCI_B_UART_CallbackSet(&g_uart0_ctrl,tx_callback,NULL,NULL)==FSP_SUCCESS;
 }
 /** @brief 在建图线程中周期处理命令、录制、逐点跟踪、暂停恢复及状态反馈。 */
@@ -302,12 +337,13 @@ void App_Navigation_Poll(void)
         if (input_size==10) {
             if (input[4]=='N' && input[5]==1 && crc16(input+2,6)==(uint16_t)(input[8]|input[9]<<8)) {
                 if (input[6]!=NAV_HEARTBEAT) sequence=input[7];
-                command(input[6],now);
+                command(input[6],now,false);
             }
             input_size=0;
         }
     }
-    if (g_navigation_state==NAV_PAUSED && UsbSerial_connected() && now-heartbeat<=1000000) {
+    bool control_link_ok = remote_run || (UsbSerial_connected() && now-heartbeat<=1000000);
+    if (g_navigation_state==NAV_PAUSED && control_link_ok) {
         Pose p;
         if (App_BuildMap_GetRobotPose(&p)) {
             g_navigation_state=resume_state; g_navigation_error=NAV_OK;
@@ -319,9 +355,9 @@ void App_Navigation_Poll(void)
     }
     if (g_navigation_state==NAV_RUNNING || g_navigation_state==NAV_RECORDING) {
         Pose p;
-        if (!UsbSerial_connected() || now-heartbeat>1000000 || !App_BuildMap_GetRobotPose(&p)) {
+        if (!control_link_ok || !App_BuildMap_GetRobotPose(&p)) {
             resume_state=g_navigation_state; g_navigation_state=NAV_PAUSED;
-            g_navigation_error=(!UsbSerial_connected() || now-heartbeat>1000000)?NAV_LINK_LOST:NAV_NO_POSE;
+            g_navigation_error=!control_link_ok?NAV_LINK_LOST:NAV_NO_POSE;
             drive(2,0,0);
         }
         else if (g_navigation_state==NAV_RECORDING) {

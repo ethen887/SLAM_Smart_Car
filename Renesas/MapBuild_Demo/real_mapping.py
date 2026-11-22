@@ -162,7 +162,7 @@ class RealMappingWindow:
         self.nav_button.bind('<Enter>', self.show_navigation_menu)
         self.nav_button.bind('<Leave>', self.hide_navigation_menu)
         self.nav_menu.bind('<Leave>', self.hide_navigation_menu)
-        ttk.Button(navigation_bar, text='Start（自动运行）', command=lambda: self.send_navigation(3)).pack(side='left', padx=6)
+        ttk.Label(navigation_bar, text='手柄 START 启停').pack(side='left', padx=6)
         ttk.Button(navigation_bar, text='Stop（急停）', command=lambda: self.send_navigation(4)).pack(side='left')
         ttk.Button(navigation_bar, text='手动控制', command=lambda: self.send_navigation(6)).pack(side='left', padx=6)
         self.nav_status = tk.StringVar(value='导航：等待连接；先录制路线，再启动自动返程。')
@@ -347,7 +347,6 @@ class RealMappingWindow:
 
     def disconnect(self):
         self.nav_menu.withdraw()
-        if self.device: self.send_navigation(4)
         self.pending_navigation = None
         self.last_nav_received = 0
         self.stop.set()

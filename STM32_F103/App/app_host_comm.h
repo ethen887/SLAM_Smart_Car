@@ -4,6 +4,7 @@
  * @brief USART1 DMA 上位机通信应用接口。
  */
 #include "app_odometry.h"
+#include <stdbool.h>
 #include <stdint.h>
 
 /** @brief 可在调试器中查看的通信统计计数。 */
@@ -31,6 +32,13 @@ void App_HostComm_Poll(void);
  * @note 此接口从运动任务调用，不等待串口发送。
  */
 void App_HostComm_PushOdometry(uint32_t timestamp_ms, const OdometryData_t *data);
+/**
+ * @brief 接收一次 PS2 的 START 采样，连续两次有效采样确认按下或释放。
+ * @param[in] valid 本次 SPI 读取是否有效。
+ * @param[in] pressed 本次 START 是否按下，无效帧时忽略。
+ * @note 由手柄任务调用。上电或失联后须确认释放才允许触发，长按仅发送一次。
+ */
+void App_HostComm_SampleRemoteStart(bool valid, bool pressed);
 /**
  * @brief 处理通过完整性检查的上位机下行帧，默认弱实现不执行操作。
  * @param type 帧中的消息类型。

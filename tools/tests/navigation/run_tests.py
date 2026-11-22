@@ -20,6 +20,12 @@ with tempfile.TemporaryDirectory(prefix='navigation-tests-') as temporary:
           root/'Renesas/TinySLAM/4.LSLidar-stm32/src/Algorithm/map_core.c']),
         ('motion', [root/'STM32_F103/App', root/'tools/tests/host_comm'],
          [root/'tools/tests/navigation/test_motion.c']),
+        ('host_comm', [root/'STM32_F103/App', root/'tools/tests/host_comm'],
+         [root/'tools/tests/host_comm/test_host_comm.c', root/'STM32_F103/App/app_host_comm.c',
+          root/'STM32_F103/App/host_protocol.c']),
+        ('split_frames', [root/'STM32_F103/App', ra/'Data_Process', ra/'Device'],
+         [root/'tools/tests/real_mapping/test_split_frames.c', ra/'Device/link_stm32.c',
+          ra/'Device/lidar_n10.c', root/'STM32_F103/App/host_protocol.c']),
     ):
         output = Path(temporary) / (name + '.exe')
         subprocess.run(['gcc', '-std=c11', '-Wall', '-Wextra', '-Werror',

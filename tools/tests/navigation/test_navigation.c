@@ -14,11 +14,16 @@ static uint8_t rx[128];
 static unsigned rx_len,rx_pos;
 static float actual_v,actual_w;
 static unsigned mode_out;
+static uint8_t reported_command, reported_state;
 uint64_t gpt_get_timestamp_us(void) { return clock_us; }
 bool App_BuildMap_GetRobotPose(Pose *out) { if (!pose_ok) return false; *out=robot; return true; }
 bool UsbSerial_connected(void) { return connected; }
 bool UsbSerial_read(uint8_t *b) { if(rx_pos==rx_len) return false; *b=rx[rx_pos++]; return true; }
-bool UsbSerial_send(const uint8_t *p,uint32_t n) { assert(n==16 && crc16(p+2,12)==(uint16_t)(p[14]|p[15]<<8)); return true; }
+bool UsbSerial_send(const uint8_t *p,uint32_t n) {
+    assert(n==16 && crc16(p+2,12)==(uint16_t)(p[14]|p[15]<<8));
+    if (!connected) return false;
+    reported_command=p[6]; reported_state=p[8]; return true;
+}
 int R_SCI_B_UART_CallbackSet(void *c,void (*f)(uart_callback_args_t *),void *a,void *b) { (void)c;(void)f;(void)a;(void)b;return 0; }
 int R_SCI_B_UART_Write(void *c,const uint8_t *f,uint32_t n) {
     (void)c; assert(n==18 && crc16(f+2,12)==(uint16_t)(f[14]|f[15]<<8));
@@ -111,5 +116,36 @@ int main(void) {
     g_nav_path.points[1]=(NavPathPoint){1,1,0};
     send(NAV_RUN);
     assert(g_navigation_state==NAV_STOPPED && g_navigation_error==NAV_NO_ROUTE);
+    /* START uses its own event stream, regardless of USB connection or pose validity on stop. */
+    App_Navigation_Init();
+    memset(cells,0,sizeof(cells));
+    robot=(Pose){0,0,0}; connected=false;
+    App_Navigation_OnRemoteStart(1,100);
+    assert(g_navigation_state==NAV_IDLE && g_navigation_error==NAV_BAD_STATE);
+    prepared=true;
+    g_nav_path.count=2;
+    g_nav_path.points[0]=(NavPathPoint){0,0,0};
+    g_nav_path.points[1]=(NavPathPoint){2,0,0};
+    App_Navigation_OnRemoteStart(2,200);
+    App_Navigation_OnRemoteStart(2,200);
+    for(unsigned i=0;i<75;i++) step(false);
+    assert(g_navigation_state==NAV_RUNNING && mode_out==1 && robot.x>0.05f);
+    connected=true;
+    for(unsigned i=0;i<75;i++) step(false);
+    assert(g_navigation_state==NAV_RUNNING && reported_command==NAV_REMOTE_START && reported_state==NAV_RUNNING);
+    connected=false; pose_ok=false; step(false);
+    assert(g_navigation_state==NAV_PAUSED);
+    App_Navigation_OnRemoteStart(3,300);
+    App_Navigation_OnRemoteStart(3,300);
+    assert(g_navigation_state==NAV_STOPPED && mode_out==2);
+    connected=true; pose_ok=true; send(NAV_HEARTBEAT);
+    for(unsigned i=0;i<75;i++) step(false);
+    assert(g_navigation_state==NAV_STOPPED && mode_out==2 && reported_state==NAV_STOPPED);
+    App_Navigation_OnRemoteStart(5,500);
+    assert(g_navigation_state==NAV_STOPPED && g_navigation_error==NAV_TRANSPORT);
+    App_Navigation_OnRemoteStart(6,600);
+    assert(g_navigation_state==NAV_RUNNING);
+    for(unsigned i=0;i<4000 && g_navigation_state==NAV_RUNNING;i++) step(false);
+    assert(g_navigation_state==NAV_DONE && mode_out==2 && hypotf(robot.x-2,robot.y)<.04f);
     puts("navigation wire/state/closed-loop tests passed");
 }

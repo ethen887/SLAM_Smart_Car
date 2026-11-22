@@ -178,6 +178,8 @@ void StartRemoteTask(void *argument)
     for (;;)
     {
         bool valid = Dev_Ps2_Read();
+        /** @brief 每次轮询独立采样 START，USB 和导航状态不参与手柄读取。 */
+        App_HostComm_SampleRemoteStart(valid, valid && Dev_Ps2_IsPressed(PS2_BTN_START));
 
         if (valid)
         {

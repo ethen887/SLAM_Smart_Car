@@ -9,6 +9,8 @@
 #define HEADER_1_stm32 0x55   // STM32 数据帧的固定帧头字节 1
 #define Length_stm32  0x10   // STM32 数据帧的固定负载长度（16 字节）
 #define STM32_FRAME_SIZE 25U // 帧总长度 25 字节
+#define STM32_TYPE_ODOMETRY 0x01U     /**< STM32 里程计帧。 */
+#define STM32_TYPE_REMOTE_START 0x02U /**< STM32 遥控器 START 事件帧。 */
 
 /* 解析后的位姿数据结构体 */
 typedef struct {
@@ -28,6 +30,25 @@ typedef struct {
  * @return false 输入参数无效或未找到有效数据帧。
  */
 bool stm32_pose_find_frame(const uint8_t *data, size_t length, uint8_t *frame_out, size_t *offsets);
+
+/**
+ * @brief 查找并复制下一条通过校验的里程计或 START 事件帧。
+ * @param[in] data 待扫描字节流。
+ * @param[in] length 字节数。
+ * @param[out] frame_out 至少容纳 STM32_FRAME_SIZE 字节。
+ * @param[out] offsets 找到的帧相对于 data 的起始偏移。
+ * @return 找到有效帧返回 true。
+ */
+bool stm32_find_frame(const uint8_t *data, size_t length, uint8_t *frame_out, size_t *offsets);
+
+/**
+ * @brief 校验 START 事件帧并提取按下序号及发送端时间。
+ * @param[in] frame 完整候选帧。
+ * @param[out] press_id 本次上电期间递增的按下序号。
+ * @param[out] timestamp_ms STM32 确认按下时的毫秒时间戳。
+ * @return 事件帧有效时返回 true。
+ */
+bool stm32_parse_remote_start(const uint8_t *frame, uint32_t *press_id, uint32_t *timestamp_ms);
 
 /**
  * @brief 校验一帧 STM32 数据，并解析出位姿。

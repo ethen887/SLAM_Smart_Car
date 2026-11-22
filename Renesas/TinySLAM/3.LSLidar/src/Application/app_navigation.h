@@ -40,7 +40,8 @@ enum {
     NAV_RUN,              /**< 从当前位置接入已录制路线并开始返程。 */
     NAV_ESTOP,            /**< 锁存急停，后续心跳不会解除制动。 */
     NAV_HEARTBEAT,        /**< 更新电脑端存活时间，不单独回复确认。 */
-    NAV_MANUAL            /**< 结束导航占用并释放手柄，保留已完成的路线。 */
+    NAV_MANUAL,           /**< 结束导航占用并释放手柄，保留已完成的路线。 */
+    NAV_REMOTE_START     /**< 状态帧中的遥控器 START 来源标记，不能通过 USB 下发。 */
 };
 
 extern volatile NavigationState g_navigation_state; /**< 当前导航状态，供调试观察。 */
@@ -53,9 +54,18 @@ extern volatile NavigationError g_navigation_error; /**< 当前导航错误，�
 void App_Navigation_Init(void);
 
 /**
+ * @brief 处理板间串口收到的 START 按下事件。
+ * @param[in] press_id STM32 本次上电期间递增的按下序号。
+ * @param[in] timestamp_ms STM32 确认按下时的时间戳，单位为毫秒。
+ * @note 由建图线程调用。重复帧不会重复触发。运行或运行暂停时结束任务并保持制动。
+ */
+void App_Navigation_OnRemoteStart(uint32_t press_id, uint32_t timestamp_ms);
+
+/**
  * @brief 解析电脑命令并推进录制、返程、暂停恢复及状态反馈。
  * @details 每次最多读取 128 字节；跟踪指令间隔为 100 ms，状态反馈间隔为 500 ms。
- *          电脑心跳超过 1 s 或位姿不可用时暂停，恢复后重新接入路线；主动急停保持停止。
+ *          电脑启动的任务和录制依赖 USB 心跳。遥控启动的任务独立于 USB。
+ *          位姿不可用时暂停，恢复后重新接入路线。主动停止后保持制动。
  * @note 在建图线程完成 STM32 数据解析后每 20 ms 调用，不可从多个任务并发调用。
  */
 void App_Navigation_Poll(void);

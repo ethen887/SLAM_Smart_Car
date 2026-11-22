@@ -1,5 +1,6 @@
 #include "uart.h"
 #include "stm32_data_process.h"
+#include "app_navigation.h"
 #include "link_stm32.h"
 #include "frame_tail.h"
 #include "pose_timing.h"
@@ -114,12 +115,19 @@ void Stm32_Data_Process(uint32_t snapshot)
             uint8_t frame_data[STM32_FRAME_SIZE];
             Stm32PoseDef pose;
             
+            /** @brief 里程计与 START 事件共用 DMA 字节流，按帧类型分别处理。 */
             while(raw_data_left >= STM32_FRAME_SIZE) // 只要剩余数据长度大于等于一帧数据长度就继续处理
             {
                 size_t found_offset = 0;
-                if(stm32_pose_find_frame(&stm32_rx_buffer[offset], raw_data_left, frame_data, &found_offset)) // 查找一帧有效数据
+                if(stm32_find_frame(&stm32_rx_buffer[offset], raw_data_left, frame_data, &found_offset))
                 {
-                    if(stm32_pose_parse_frame(frame_data, &pose) != NULL) 
+                    if (frame_data[2] == STM32_TYPE_REMOTE_START)
+                    {
+                        uint32_t press_id, press_ms;
+                        if (stm32_parse_remote_start(frame_data, &press_id, &press_ms))
+                            App_Navigation_OnRemoteStart(press_id, press_ms);
+                    }
+                    else if(stm32_pose_parse_frame(frame_data, &pose) != NULL)
                     {
                         // 只要收到，就持续覆盖更新，保证用的是最新一帧坐标和时间戳
                         g_robot_time = pose.timestamp; // 记录时间戳

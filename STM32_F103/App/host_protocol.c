@@ -42,6 +42,16 @@ static void put_float(uint8_t *out, float value)
     put_u32(out, bits);
 }
 
+/** @brief 填写固定长度上行帧头、校验值和帧尾，负载由调用方提前写入。 */
+static void finish_uplink(uint8_t out[HOST_ODOM_FRAME_SIZE], uint8_t type)
+{
+    out[0] = 0xaa; out[1] = 0x55; out[2] = type;
+    out[3] = 16; out[4] = 0;
+    uint16_t crc = Host_Crc16(out + 2, 19);
+    out[21] = (uint8_t)crc; out[22] = (uint8_t)(crc >> 8);
+    out[23] = 0x0d; out[24] = 0x0a;
+}
+
 /**
  * @brief 按上位机协议构造完整的里程计帧。
  * @param out 帧输出缓冲区。
@@ -53,11 +63,16 @@ static void put_float(uint8_t *out, float value)
 void Host_EncodeOdometry(uint8_t out[HOST_ODOM_FRAME_SIZE], uint32_t timestamp_ms,
                          float x, float y, float heading)
 {
-    out[0] = 0xaa; out[1] = 0x55; out[2] = HOST_TYPE_ODOMETRY;
-    out[3] = 16; out[4] = 0;
     put_u32(out + 5, timestamp_ms);
     put_float(out + 9, x); put_float(out + 13, y); put_float(out + 17, heading);
-    uint16_t crc = Host_Crc16(out + 2, 19);
-    out[21] = (uint8_t)crc; out[22] = (uint8_t)(crc >> 8);
-    out[23] = 0x0d; out[24] = 0x0a;
+    finish_uplink(out, HOST_TYPE_ODOMETRY);
+}
+
+void Host_EncodeRemoteStart(uint8_t out[HOST_ODOM_FRAME_SIZE], uint32_t press_id,
+                            uint32_t timestamp_ms)
+{
+    put_u32(out + 5, press_id);
+    put_u32(out + 9, timestamp_ms);
+    memset(out + 13, 0, 8);
+    finish_uplink(out, HOST_TYPE_REMOTE_START);
 }
