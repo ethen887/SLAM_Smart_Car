@@ -1,10 +1,10 @@
-#Sun Nov 15 18:04:38 CST 2026
+#Sun Nov 22 20:36:29 CST 2026
 =\=\=\=\=\=\=
 <<<<<<<=HEAD
 >>>>>>>=fc08dbe8eebf969078cb18609fe74a36e599ebc0
 com.renesas.cdt.ddsc.content/com.renesas.cdt.ddsc.content.defaultlinkerscript=script/fsp.ld
 com.renesas.cdt.ddsc.contentgen.options/options/suppresswarningspaths=ra/arm,ra/aws
-com.renesas.cdt.ddsc.contentgen.options/options/toolchainversion=
+com.renesas.cdt.ddsc.contentgen.options/options/toolchainversion=13.2.1
 com.renesas.cdt.ddsc.packs.componentfiles/AWS\#\#Heaps\#\#FreeRTOS\#\#heap_4\#\#\#\#11.1.0+fsp.6.5.0/all=271572837,ra/aws/FreeRTOS/FreeRTOS/Source/portable/MemMang/heap_4.c
 com.renesas.cdt.ddsc.packs.componentfiles/AWS\#\#Heaps\#\#FreeRTOS\#\#heap_4\#\#\#\#11.1.0+fsp.6.5.0/libraries=
 com.renesas.cdt.ddsc.packs.componentfiles/AWS\#\#RTOS\#\#FreeRTOS\#\#all\#\#\#\#11.1.0+fsp.6.5.0/all=1696644494,ra/aws/FreeRTOS/LICENSE.md|3205004778,ra/aws/FreeRTOS/FreeRTOS/Source/event_groups.c|3260359778,ra/aws/FreeRTOS/FreeRTOS/Source/list.c|2664302651,ra/aws/FreeRTOS/FreeRTOS/Source/queue.c|2281032974,ra/aws/FreeRTOS/FreeRTOS/Source/stream_buffer.c|3480783605,ra/aws/FreeRTOS/FreeRTOS/Source/tasks.c|2509994605,ra/aws/FreeRTOS/FreeRTOS/Source/timers.c|1696644494,ra/aws/FreeRTOS/FreeRTOS/Source/LICENSE.md|3702017456,ra/aws/FreeRTOS/FreeRTOS/Source/include/event_groups.h|3042613465,ra/aws/FreeRTOS/FreeRTOS/Source/include/atomic.h|2899392837,ra/aws/FreeRTOS/FreeRTOS/Source/include/FreeRTOS.h|2245834019,ra/aws/FreeRTOS/FreeRTOS/Source/include/message_buffer.h|1277067313,ra/aws/FreeRTOS/FreeRTOS/Source/include/queue.h|1869942647,ra/aws/FreeRTOS/FreeRTOS/Source/include/semphr.h|3879233683,ra/aws/FreeRTOS/FreeRTOS/Source/include/stream_buffer.h|176218043,ra/aws/FreeRTOS/FreeRTOS/Source/include/task.h|2771948283,ra/aws/FreeRTOS/FreeRTOS/Source/include/timers.h|1347583436,ra/aws/FreeRTOS/FreeRTOS/Source/include/deprecated_definitions.h|2798549666,ra/aws/FreeRTOS/FreeRTOS/Source/include/list.h|3812413371,ra/aws/FreeRTOS/FreeRTOS/Source/include/mpu_prototypes.h|2804498837,ra/aws/FreeRTOS/FreeRTOS/Source/include/mpu_wrappers.h|1038886775,ra/aws/FreeRTOS/FreeRTOS/Source/include/portable.h|2900225587,ra/aws/FreeRTOS/FreeRTOS/Source/include/projdefs.h|4147937855,ra/aws/FreeRTOS/FreeRTOS/Source/include/stack_macros.h|1571813677,ra/aws/FreeRTOS/FreeRTOS/Source/include/newlib-freertos.h|4137422866,ra/aws/FreeRTOS/FreeRTOS/Source/include/picolibc-freertos.h|2987473412,ra/aws/FreeRTOS/FreeRTOS/Source/include/croutine.h|1041992296,ra/fsp/src/rm_freertos_port/port.c|4290761558,ra/fsp/src/rm_freertos_port/portmacro.h
@@ -27,8 +27,6 @@ com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#Common\#\#all\#\#fsp_common
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#Common\#\#all\#\#fsp_common\#\#\#\#6.5.0/libraries=
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_dmac\#\#\#\#6.5.0/all=3412164478,ra/fsp/inc/api/r_transfer_api.h|1501073843,ra/fsp/inc/instances/r_dmac.h|377261834,ra/fsp/src/r_dmac/r_dmac.c
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_dmac\#\#\#\#6.5.0/libraries=
-com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_dtc\#\#\#\#6.5.0/all=3412164478,ra/fsp/inc/api/r_transfer_api.h|899217706,ra/fsp/inc/instances/r_dtc.h|148736719,ra/fsp/src/r_dtc/r_dtc.c
-com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_dtc\#\#\#\#6.5.0/libraries=
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_gpt\#\#\#\#6.5.0/all=254185379,ra/fsp/inc/api/r_timer_api.h|3105831900,ra/fsp/inc/instances/r_gpt.h|827300049,ra/fsp/src/r_gpt/r_gpt.c
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_gpt\#\#\#\#6.5.0/libraries=
 com.renesas.cdt.ddsc.packs.componentfiles/Renesas\#\#HAL\ Drivers\#\#all\#\#r_ioport\#\#\#\#6.5.0/all=1630225429,ra/fsp/inc/api/r_ioport_api.h|1676708329,ra/fsp/inc/instances/r_ioport.h|557850714,ra/fsp/src/r_ioport/r_ioport.c
@@ -46,6 +44,7 @@ com.renesas.cdt.ddsc.project.standalone.projectgenerationoptions/isCpp=false
 com.renesas.cdt.ddsc.settingseditor/com.renesas.cdt.ddsc.settingseditor.active_page=PinConfiguration
 com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.basic_on_usb.510900471=false
 com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.pcdc_on_usb.65660588=false
+com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.uart_on_sci_b_uart.1280751574=false
 com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.uart_on_sci_b_uart.1437790290=false
 com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.uart_on_sci_b_uart.539075881=false
 com.renesas.cdt.ddsc.threads.configurator/collapse/module.driver.uart_on_sci_b_uart.754255129=false

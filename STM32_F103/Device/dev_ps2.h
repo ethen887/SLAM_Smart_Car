@@ -33,8 +33,19 @@ typedef struct {
     uint8_t lx, ly, rx, ry;
 } Ps2Data_t;
 
-/* 最近一次成功读取的原始手柄状态。 */
+/** @brief 缓存的手柄输入；实时通信结果见 g_ps2_link.last_read_ok。 */
 extern Ps2Data_t ps2_data;
+
+/** @brief 通过 SWD 查看 PS2 轮询状态，无需给车连接 USB。 */
+typedef struct {
+    uint32_t polls;      /**< 发起的轮询次数。 */
+    uint32_t frames;     /**< 通过模式、确认字节及帧长校验的次数。 */
+    uint32_t reply;      /**< 最近一次回应的前三字节，按接收顺序由高位至低位排列。 */
+    uint8_t spi_status;  /**< 最近一次轮询的 HAL_SPI 状态。 */
+    bool last_read_ok;   /**< 最近一次轮询是否取得有效帧。 */
+} Ps2LinkStats_t;
+
+extern volatile Ps2LinkStats_t g_ps2_link; /**< PS2 链路统计，供调试器观察。 */
 
 /*
  * @brief 初始化驱动。需先调用 MX_GPIO_Init() 和 MX_SPI2_Init()。
@@ -44,7 +55,7 @@ void Dev_Ps2_Init(void);
 
 /*
  * @brief 查询并解析一次手柄数据。
- * @return true 协议帧有效；false 读取失败，输出状态立即归零。
+ * @return true 协议帧有效；false 读取失败，保留缓存输入。
  * @note 阻塞调用；SPI2 不得被其他任务同时使用。
  */
 bool Dev_Ps2_Read(void);

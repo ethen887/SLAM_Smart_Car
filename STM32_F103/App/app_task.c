@@ -9,13 +9,19 @@
 #include "app_odometry.h"
 #include "app_host_comm.h"
 #include "app_test_run.h"
+#include "app_navigation_motion.h"
 #include "tim.h"
 #include "FreeRTOS.h"
 #include "task.h"
 
-#define PS2_STARTUP_DELAY_MS     200U
+/* 手柄接收器内部 MCU 上电后需要一段启动时间才能响应 PS2 帧。
+ * 原来的 200 ms 在“USB 先供电、再开总电源”的顺序下够用，但总电源
+ * 一开就是整板同时上电，接收器还没就绪就开始握手，会一直失败。
+ * 放长到 1 s，让接收器先跑起来。 */
+#define PS2_STARTUP_DELAY_MS     1000U
 #define PS2_POLL_PERIOD_MS       10U
-#define PS2_CONFIG_INTERVAL_MS   1000U
+/* 通信失败后的重试间隔，缩短到 500 ms，掉线后能更快恢复。 */
+#define PS2_CONFIG_INTERVAL_MS   500U
 #define PS2_TIMEOUT_MS           500U
 
 // 最近一次成功接收PS2数据的时间
@@ -133,7 +139,7 @@ void StartMoveTask(void *argument)
         const bool emergency_stop = ps2_data.valid &&
             (ps2_data.mode == 0x73U || ps2_data.mode == 0x79U) &&
             (ps2_data.buttons & PS2_BTN_L2) == 0U;
-        if (!App_TestRun_Update(dt, emergency_stop)) {
+        if (!App_NavigationMotion_Update() && !App_TestRun_Update(dt, emergency_stop)) {
             if (!valid || (uint32_t)(now - last_valid_tick) >= timeout_ticks) {
                 App_Move_Stop();
             }
@@ -177,6 +183,8 @@ void StartRemoteTask(void *argument)
     for (;;)
     {
         bool valid = Dev_Ps2_Read();
+        /** @brief 每次轮询独立采样 START，USB 和导航状态不参与手柄读取。 */
+        App_HostComm_SampleRemoteStart(valid, valid && Dev_Ps2_IsPressed(PS2_BTN_START));
 
         if (valid)
         {
@@ -191,9 +199,13 @@ void StartRemoteTask(void *argument)
             // 读取失败，保留上一次有效的ps2_data
             uint32_t now = osKernelGetTickCount();
 
-            // 每隔1秒尝试重新配置手柄
+            // 每隔 500 ms 尝试恢复手柄
             if ((uint32_t)(now - last_config_tick) >= retry_ticks)
             {
+                /* 只重发配置命令救不回“接收器还没进入命令模式”的情况，
+                 * 这里把整个 PS2 链路重新初始化一遍再配置，
+                 * 效果等同于把接收器拔下来重新插一次。 */
+                Dev_Ps2_Init();
                 Dev_Ps2_ConfigureAnalog();
                 last_config_tick = osKernelGetTickCount();
             }

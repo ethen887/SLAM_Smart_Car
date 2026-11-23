@@ -42,6 +42,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS "TRUE")
 
 include(${CMAKE_CURRENT_LIST_DIR}/Config.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/GeneratedCfg.cmake)
+
+# ===== 用户添加：UART2 已从 RASC 中移除，DTC (g_transfer2) 模组随之取消，
+# RASC 不再生成 r_dtc_cfg.h，但 FSP 会 GLOB 编译整个 ra/ 目录，故排除该源文件 =====
+list(APPEND EXCLUDED_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/ra/fsp/src/r_dtc/r_dtc.c")
+
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/GeneratedSrc.cmake)
 
 # ===== 以下是用户添加：每次链接完自动生成 HEX 烧录文件 =====
@@ -62,7 +67,9 @@ target_sources(${PROJECT_NAME}.elf PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../4.LSL
 # 项目头文件目录，供编译器和 C/C++ 索引使用。
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/../4.LSLidar-stm32/src/Algorithm"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Debug"             # ★ 新增这一行，包含 src 根目录
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Application"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Navigation"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Community"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Device"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Data_Process"

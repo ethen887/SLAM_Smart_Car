@@ -23,9 +23,9 @@ def close_obstacles(grid, library, resolution=0.05):
                                         ct.POINTER(ct.c_uint8), ct.POINTER(ct.c_uint8), ct.c_int]
     library.map_close_cells.restype = ct.c_int
     if library.map_close_cells(cells, w, h, out, scratch, n): raise RuntimeError('障碍物闭运算失败')
-    queue = (ct.c_uint16*n)()
+    queue = (ct.c_uint32*n)()
     library.map_classify_walls.argtypes = [ct.POINTER(ct.c_uint8), ct.c_int, ct.c_int, ct.c_float,
-                                          ct.POINTER(ct.c_uint8), ct.POINTER(ct.c_uint16), ct.c_int]
+                                          ct.POINTER(ct.c_uint8), ct.POINTER(ct.c_uint32), ct.c_int]
     library.map_classify_walls.restype = ct.c_int
     if library.map_classify_walls(out, w, h, resolution, scratch, queue, n): raise RuntimeError('墙面分类失败')
     return np.ctypeslib.as_array(out).copy().reshape(h, w)
