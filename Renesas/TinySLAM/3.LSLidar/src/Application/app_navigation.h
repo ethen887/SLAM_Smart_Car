@@ -37,7 +37,9 @@ void App_Navigation_Init(void);
  * @brief 处理 STM32 发来的 START 按下事件，重复帧只处理一次。
  * @param[in] press_id STM32 侧本次上电期间递增的按下序号。
  * @param[in] timestamp_ms STM32 确认按下的时刻，单位为毫秒。
- * @note 只在路径预览完成后启动；运行中按下结束任务并保持制动。
+ * @note 不依赖 USB 连接与上位机预览确认：只要存在已生成的有效路径
+ *       （NAV_PREVIEW / NAV_READY / NAV_STOPPED），按下即启动或继续运行；
+ *       运行中按下则停止并保持制动；无路径或已结束时忽略并保持当前状态。
  */
 void App_Navigation_OnRemoteStart(uint32_t press_id, uint32_t timestamp_ms);
 

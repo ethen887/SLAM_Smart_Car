@@ -12,7 +12,8 @@
 #include <string.h>
 
 #define BRAKE_SETTLE_US 300000U /**< 在发送制动后留出停车时间再采集规划起点。 */
-#define START_TOLERANCE_M 0.08f /**< 起点变化过大时要求重新规划、重新预览。 */
+#define START_TOLERANCE_M 0.08f /**< 起步前车体偏离规划起点过大时禁止发车，单位为米。 */
+#define RESUME_TOLERANCE_M 0.25f /**< 运行中暂停后继续运行时，允许车体相对当前跟踪点的最大距离，单位为米。 */
 #define GOAL_TOLERANCE_M 0.035f /**< 终点位置容差，单位为米。 */
 #define TRACK_LOOKAHEAD_M 0.10f /**< 从原始路径上选取近距离跟踪点，单位为米。 */
 #define CLEARANCE_STEP_M 0.02f /**< 视觉防撞测距的采样步长，单位为米。 */
@@ -161,9 +162,7 @@ static void plan_if_stopped(uint64_t now)
 
 void App_Navigation_OnRemoteStart(uint32_t press_id, uint32_t timestamp_ms)
 {
-    bool same_session = remote_press_seen && (int32_t)(timestamp_ms - remote_press_ms) >= 0;
-    if (same_session && press_id == remote_press_id && timestamp_ms == remote_press_ms) return;
-    bool in_order = press_id == (same_session ? remote_press_id + 1U : 1U);
+    if (remote_press_seen && press_id == remote_press_id && timestamp_ms == remote_press_ms) return;
     remote_press_seen = true;
     remote_press_id = press_id;
     remote_press_ms = timestamp_ms;
@@ -173,13 +172,21 @@ void App_Navigation_OnRemoteStart(uint32_t press_id, uint32_t timestamp_ms)
         halt(NAV_STOPPED, NAV_OK);
         return;
     }
-    if (g_navigation_state != NAV_READY) return;
+    bool can_start = (g_navigation_state == NAV_PREVIEW ||
+                      g_navigation_state == NAV_READY ||
+                      g_navigation_state == NAV_STOPPED) &&
+                     g_nav_path.count > 0 && target < (unsigned)g_nav_path.count;
+    if (!can_start) return;
+
     Pose pose;
-    const NavPathPoint *start = &g_nav_path.points[0];
+    const NavPathPoint *anchor = &g_nav_path.points[target];
+    const float tolerance = (g_navigation_state == NAV_STOPPED && target > 0U)
+                                ? RESUME_TOLERANCE_M
+                                : START_TOLERANCE_M;
     last_command = NAV_USB_REMOTE;
-    if (!in_order) g_navigation_error = NAV_TRANSPORT;
-    else if (!App_BuildMap_GetRobotPose(&pose)) g_navigation_error = NAV_NO_POSE;
-    else if (hypotf(pose.x - start->x, pose.y - start->y) > START_TOLERANCE_M) {
+    if (!App_BuildMap_GetRobotPose(&pose)) {
+        g_navigation_error = NAV_NO_POSE;
+    } else if (hypotf(pose.x - anchor->x, pose.y - anchor->y) > tolerance) {
         halt(NAV_STOPPED, NAV_START_MOVED);
         return;
     } else {

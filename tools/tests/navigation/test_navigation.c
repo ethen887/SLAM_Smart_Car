@@ -139,6 +139,10 @@ int main(void)
     }
     for (int y = 145; y <= 155; ++y) g_build_map_cells[y * BUILD_MAP_WIDTH + 161].log_odds = 3;
     App_Navigation_Init();
+    /* 无路径时按下 START 应被忽略并保持原状态。 */
+    App_Navigation_OnRemoteStart(10, 50);
+    assert(g_navigation_state == NAV_IDLE && g_navigation_error == NAV_OK);
+
     command(NAV_USB_PLAN, 1, 0.9f, 0, true);
     assert(g_navigation_state == NAV_IDLE);
     preview(2, 0.9f, 0);
@@ -146,7 +150,6 @@ int main(void)
     for (int i = 0; i < g_nav_path.count; ++i) detour |= fabsf(g_nav_path.points[i].y) > 0.25f;
     assert(detour);
     App_BuildMap_PublishSnapshot();
-    App_Navigation_OnRemoteStart(1, 100);
     assert(g_navigation_state == NAV_PREVIEW);
     command(NAV_USB_PATH_RECEIVED, 1, 0, 0, false);
     assert(g_navigation_state == NAV_PREVIEW);
@@ -157,30 +160,42 @@ int main(void)
     connected = false;
     for (unsigned i = 0; i < 100; ++i) step();
     assert(g_navigation_state == NAV_READY && mode_out == 2);
-    App_Navigation_OnRemoteStart(2, 200);
-    App_Navigation_OnRemoteStart(2, 200);
+    /* 断开 USB 且按下序号不连续时，仍可直接启动。 */
+    App_Navigation_OnRemoteStart(20, 200);
+    App_Navigation_OnRemoteStart(20, 200);
     for (unsigned i = 0; i < 350 && hypotf(robot.x, robot.y) <= 0.03f; ++i) step();
     assert(g_navigation_state == NAV_RUNNING && hypotf(robot.x, robot.y) > 0.03f);
-    App_Navigation_OnRemoteStart(3, 300);
-    App_Navigation_OnRemoteStart(3, 300);
+    App_Navigation_OnRemoteStart(21, 300);
+    App_Navigation_OnRemoteStart(21, 300);
     for (unsigned i = 0; i < 20; ++i) step();
     assert(g_navigation_state == NAV_STOPPED && mode_out == 2);
-    App_Navigation_OnRemoteStart(4, 400);
-    assert(g_navigation_state == NAV_STOPPED);
     connected = true;
     unsigned before = path_frames;
     command(NAV_USB_GET_PATH, 0, 0, 0, false);
     for (unsigned i = 0; i < 30 && path_frames == before; ++i) step();
     assert(path_frames == before + 1 && path_frame[6] == 2);
 
-    preview(4, 0.9f, 0);
-    command(NAV_USB_PATH_RECEIVED, 4, 0, 0, false);
-    App_Navigation_OnRemoteStart(5, 500);
+    /* 暂停后再次按下 START 可在无 USB 情况下继续运行直至到达终点。 */
+    connected = false;
+    App_Navigation_OnRemoteStart(22, 400);
+    assert(g_navigation_state == NAV_RUNNING);
     for (unsigned i = 0; i < 4000 && g_navigation_state == NAV_RUNNING; ++i) step();
     if (g_navigation_state != NAV_DONE)
         fprintf(stderr, "Arrival: state=%d error=%d pose=(%f,%f,%f)\n", g_navigation_state,
                 g_navigation_error, robot.x, robot.y, robot.theta);
     assert(g_navigation_state == NAV_DONE && mode_out == 2 && hypotf(robot.x - 0.9f, robot.y) < 0.04f);
+
+    /* 处于 NAV_PREVIEW 且未收到上位机预览确认时，断开 USB 按下 START 也能直接发车。 */
+    connected = true;
+    robot = (Pose){0};
+    preview(4, 0.9f, 0);
+    assert(g_navigation_state == NAV_PREVIEW);
+    connected = false;
+    App_Navigation_OnRemoteStart(25, 500);
+    assert(g_navigation_state == NAV_RUNNING);
+    for (unsigned i = 0; i < 4000 && g_navigation_state == NAV_RUNNING; ++i) step();
+    assert(g_navigation_state == NAV_DONE && mode_out == 2 && hypotf(robot.x - 0.9f, robot.y) < 0.04f);
+    connected = true;
     preview(5, 1, 0);
     command(NAV_USB_PATH_RECEIVED, 5, 0, 0, false);
     robot.y += 0.10f;
