@@ -21,6 +21,7 @@ class App:
         bar=ttk.Frame(self.root);bar.pack(fill='x',padx=8,pady=5)
         for label,cmd in [('障碍物编辑',lambda:self.setmode('障碍物')),('航点编辑',lambda:self.setmode('航点')),('选择/移动',lambda:self.setmode('移动')),('删除选中',self.delete),('清空障碍物',self.clear),('编辑选中',self.edit),('航点前移',lambda:self.reorder(-1)),('航点后移',lambda:self.reorder(1)),('保存',self.save),('加载',self.load),('参数',self.settings),('导出',self.export),('清空监控',self.clear_monitors)]:ttk.Button(bar,text=label,command=cmd).pack(side='left',padx=2)
         self.closed=tk.BooleanVar(value=self.s['closed']);ttk.Checkbutton(bar,text='闭环',variable=self.closed,command=self.set_closed).pack(side='left')
+        self.slam_var=tk.BooleanVar(value=bool(self.s.get('slam', False)));ttk.Checkbutton(bar,text='启用 SLAM 闭环',variable=self.slam_var,command=self.set_slam).pack(side='left',padx=(6,0))
         controls=ttk.Frame(self.root);controls.pack(fill='x',padx=8)
         ttk.Button(controls,text='真实数据建图',command=self.open_real).pack(side='left',padx=4)
         for label,cmd in [('开始/继续',self.start),('暂停',self.pause),('单步前进',self.forward),('单步后退',self.back),('重置',self.reset)]:ttk.Button(controls,text=label,command=cmd).pack(side='left',padx=2)
@@ -51,6 +52,7 @@ class App:
         if self.sim:self.sim.grid.close()
         self.sim=None;self.playing=False;self.index=0;self.timeline.configure(to=0);self.draw()
     def set_closed(self):self.s['closed']=self.closed.get();self.invalidate()
+    def set_slam(self):self.s['slam']=self.slam_var.get();self.invalidate()
     def reset(self):self.invalidate();self.status.set('已重置，可重新开始。')
     def start(self):
         if not self.sim:
@@ -215,12 +217,19 @@ class App:
         if item:
             real=item['real'];est=item['estimate'];h=self.sim.history[:self.index+1]
             a.plot([p['real'][0] for p in h],[p['real'][1] for p in h],color='#287eb3',linewidth=1.4)
+            if self.s.get('slam') and 'odom' in item:
+                b.plot([p['odom'][0] for p in h],[p['odom'][1] for p in h],color='#e67e22',linestyle='--',linewidth=1.1,alpha=.75)
             b.plot([p['estimate'][0] for p in h],[p['estimate'][1] for p in h],color='#287eb3',linewidth=1.4)
             for ax,p in ((a,real),(b,est)):
                 ax.add_patch(Circle((p[0],p[1]),self.s['robot_radius'],fill=False,color='#16699e',linewidth=1.5));ax.arrow(p[0],p[1],.25*math.cos(p[2]),.25*math.sin(p[2]),color='#16699e',width=.018,head_width=.08,length_includes_head=True)
             for ang,dist,hit in item['rays'][::max(1,len(item['rays'])//60)]:
                 a.plot([real[0],real[0]+dist*math.cos(real[2]+ang)],[real[1],real[1]+dist*math.sin(real[2]+ang)],color='#e99d45',alpha=.25,linewidth=.5)
             lines += [f"时间：{item['time']:.2f} s  /  帧：{item['frame']}",f"估计 X / Y：{est[0]:.2f} / {est[1]:.2f} m",f"估计航向：{math.degrees(est[2]):.1f}°",f"速度：{item['linear_velocity']:.2f} m/s  /  {item['angular_velocity']:.2f} rad/s",f"目标：P{item['target']}　里程：{item['distance']:.2f} m",f"已探索：{100*np.mean(grid['seen']):.1f}%",f"有效命中：{sum(r[2] for r in item['rays'])} / {len(item['rays'])}"]
+            if item.get('slam_stats'):
+                st = item['slam_stats']
+                err = math.hypot(est[0] - real[0], est[1] - real[1])
+                lines += [f"SLAM 关键帧：{st['keyframe_count']}　闭环：{st['loop_closures']} 次",
+                          f"匹配得分：{st['last_score']:.2f}　定位误差：{err:.3f} m"]
         else:lines+=['尚未开始','点击栅格添加监控点']
         lines+=['','监控点  （点击曲线图例切换）']
         for i,(x,y) in enumerate(self.monitors):

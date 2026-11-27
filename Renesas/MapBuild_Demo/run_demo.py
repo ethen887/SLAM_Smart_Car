@@ -3,11 +3,28 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parent
 
 def build():
-    builddir=ROOT/'build'; dll=builddir/('libmapcore.dll' if sys.platform=='win32' else 'libmapcore.so')
-    sources=[ROOT/'CMakeLists.txt',ROOT/'core/map_core.c',ROOT/'core/map_core.h']
-    real=builddir/('libmapreal.dll' if sys.platform=='win32' else 'libmapreal.so')
-    sources += [ROOT/'core/real_wrapper.c',ROOT.parent/'TinySLAM/4.LSLidar-stm32/src/Algorithm/map_core.c',ROOT.parent/'TinySLAM/4.LSLidar-stm32/src/Algorithm/map_core.h']
-    if dll.exists() and real.exists() and all(min(dll.stat().st_mtime,real.stat().st_mtime)>=p.stat().st_mtime for p in sources):return dll
+    builddir=ROOT/'build'
+    ext='.dll' if sys.platform=='win32' else '.so'
+    dll=builddir/('libmapcore'+ext)
+    real=builddir/('libmapreal'+ext)
+    slam=builddir/('libslamcore'+ext)
+    slam_dir=ROOT.parent/'TinySLAM/3.LSLidar/src/Slam'
+    sources=[
+        ROOT/'CMakeLists.txt',
+        ROOT/'core/map_core.c', ROOT/'core/map_core.h',
+        ROOT/'core/real_wrapper.c', ROOT/'core/slam_wrapper.c',
+        slam_dir/'map_core.c', slam_dir/'map_core.h',
+        slam_dir/'slam_types.h',
+        slam_dir/'slam_scan_accum.c', slam_dir/'slam_scan_accum.h',
+        slam_dir/'slam_matcher.c', slam_dir/'slam_matcher.h',
+        slam_dir/'slam_pose_graph.c', slam_dir/'slam_pose_graph.h',
+        slam_dir/'slam_engine.c', slam_dir/'slam_engine.h',
+    ]
+    if dll.exists() and real.exists() and slam.exists() and all(
+        min(dll.stat().st_mtime, real.stat().st_mtime, slam.stat().st_mtime) >= p.stat().st_mtime
+        for p in sources
+    ):
+        return dll
     for tool in ('cmake','ninja','gcc'):
         if not shutil.which(tool):raise RuntimeError(f'找不到 {tool}，请安装并加入 PATH。')
     cache=builddir/'CMakeCache.txt'
@@ -32,4 +49,3 @@ if __name__=='__main__':
             root=tk.Tk();root.withdraw();messagebox.showerror('启动失败',str(e));root.destroy()
         except Exception:pass
         sys.exit(1)
-

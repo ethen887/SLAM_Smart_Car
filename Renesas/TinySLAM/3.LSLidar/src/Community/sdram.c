@@ -4,11 +4,10 @@
 /**
  * @brief 自检覆盖的范围（字节）。
  *
- * @details 只测地图实际用到的 1.08 MB，不必遍历整颗 32 MB 芯片。
- *          按 4 KB 步长取样，足以覆盖到行、列、bank 的高位地址线：
- *          地址线一旦错位或未接，某些取样点会互相覆盖，读回值就对不上。
+ * @details 覆盖 SlamSdramPool 完整工作区（~6.1 MB）并留出余量，按 4 KB 步长
+ *          取样测试前 8 MB 空间，足以覆盖行、列与 bank 高位地址线，上电耗时 < 1 ms。
  */
-#define SDRAM_TEST_BYTES (1080000UL)
+#define SDRAM_TEST_BYTES (8UL * 1024UL * 1024UL)
 
 /** @brief 取样步长（字节），4 KB 一跳。 */
 #define SDRAM_TEST_STRIDE 4096UL

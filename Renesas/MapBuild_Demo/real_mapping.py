@@ -265,7 +265,7 @@ class RealMappingWindow:
             messagebox.showerror('波特率错误', '请输入大于 0 的整数波特率。', parent=self.win); return
         try:
             import serial
-            self.device = serial.Serial(self.port.get(), baud, timeout=0.1, write_timeout=0.2)
+            self.device = serial.Serial(self.port.get(), baud, timeout=0.02, write_timeout=0.2)
         except Exception as exc:
             messagebox.showerror('串口连接失败', str(exc), parent=self.win); return
         self.stop.clear(); self.parser = StreamParser(); self.queue = queue.Queue(maxsize=64); self.clear()
@@ -291,7 +291,9 @@ class RealMappingWindow:
                         frame = navigation_command(5, 0)
                         if self.device.write(frame) != len(frame): raise OSError('心跳未完整发送')
                     last_heartbeat = now
-                data = self.device.read(4096)
+                waiting = getattr(self.device, 'in_waiting', 0)
+                read_size = min(16384, waiting) if isinstance(waiting, int) and waiting > 0 else 4096
+                data = self.device.read(read_size)
                 for frame in self.parser.feed(data):
                     if frame[0] == 'map':
                         with self.map_lock: self.latest_map = frame
@@ -359,7 +361,7 @@ class RealMappingWindow:
                 self.goal_dot.set_data(x[-1:], y[-1:])
                 self.canvas.draw()
                 self.write_navigation_aux(NAV_PATH_RECEIVED, seq)
-        self.win.after(100, self.tick)
+        self.win.after(50, self.tick)
 
     def draw(self, pose):
         cfg = real_map_settings(); cells = self.cells
@@ -379,8 +381,12 @@ class RealMappingWindow:
             self.pose_arrow = None
             self.ax.set_xlim(extent[:2]); self.ax.set_ylim(extent[2:])
             self.ax.set_xlabel('X (m)'); self.ax.set_ylabel('Y (m)'); self.ax.set_aspect('equal')
-        self.map_image.set_data(values); self.map_image.set_extent(extent)
-        self.ax.set_xlim(extent[:2]); self.ax.set_ylim(extent[2:])
+            self._last_extent = extent
+        self.map_image.set_data(values)
+        if getattr(self, '_last_extent', None) != extent:
+            self.map_image.set_extent(extent)
+            self.ax.set_xlim(extent[:2]); self.ax.set_ylim(extent[2:])
+            self._last_extent = extent
         boxes = [Rectangle((extent[0] + x0 * cfg['resolution'], extent[2] + y0 * cfg['resolution']),
                            (x1-x0) * cfg['resolution'], (y1-y0) * cfg['resolution'])
                  for x0, y0, x1, y1 in obstacle_boxes(cells == 2)]

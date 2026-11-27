@@ -27,10 +27,96 @@ bool stm32_pose_at(uint64_t time_us, Stm32PoseDef *out) {
     return true;
 }
 
+static float ray_room_dist(float x, float y, float ang)
+{
+    float dx = cosf(ang), dy = sinf(ang), d = 7.0f;
+    if (dx > 1e-6f)  { float t = ( 2.5f - x) / dx; if (t > 0 && t < d) d = t; }
+    if (dx < -1e-6f) { float t = (-2.5f - x) / dx; if (t > 0 && t < d) d = t; }
+    if (dy > 1e-6f)  { float t = ( 2.5f - y) / dy; if (t > 0 && t < d) d = t; }
+    if (dy < -1e-6f) { float t = (-2.5f - y) / dy; if (t > 0 && t < d) d = t; }
+    // 非对称内柱 [-0.4, 0.3] x [-0.2, 0.8]
+    float p[4] = {-dx, dx, -dy, dy};
+    float q[4] = {x - (-0.4f), 0.3f - x, y - (-0.2f), 0.8f - y};
+    float tmin = 0.0f, tmax = d;
+    int ok = 1;
+    for (int k = 0; k < 4; ++k) {
+        if (fabsf(p[k]) < 1e-9f) { if (q[k] < 0.0f) { ok = 0; break; } }
+        else {
+            float t = q[k] / p[k];
+            if (p[k] < 0.0f) { if (t > tmin) tmin = t; }
+            else { if (t < tmax) tmax = t; }
+            if (tmin > tmax) { ok = 0; break; }
+        }
+    }
+    if (ok && tmin > 0.0f && tmin < d) d = tmin;
+    return d;
+}
+
+static void feed_n10_turn(float true_x, float true_y, float true_yaw,
+                          float odom_x, float odom_y, float odom_yaw)
+{
+    const int packs = 24;
+    for (int p = 0; p < packs; ++p) {
+        OnePointDef pts[POINT_PER_PACK];
+        for (int i = 0; i < POINT_PER_PACK; ++i) {
+            int idx = p * POINT_PER_PACK + i;
+            float ccw = -3.14159265f + (2.0f * 3.14159265f * (float)idx) / (float)(packs * POINT_PER_PACK);
+            float dist_m = ray_room_dist(true_x, true_y, true_yaw + ccw);
+            float cw_deg = (-ccw) * (180.0f / 3.14159265f);
+            while (cw_deg < 0.0f) cw_deg += 360.0f;
+            while (cw_deg >= 360.0f) cw_deg -= 360.0f;
+            pts[i].angle = (uint16_t)(cw_deg * 100.0f);
+            pts[i].distance = (uint16_t)(dist_m * 1000.0f);
+        }
+        Stm32PoseDef sp = {.timestamp = 1000U, .x = odom_x, .y = odom_y, .yaw = odom_yaw};
+        App_BuildMap_OnPoints(pts, POINT_PER_PACK, &sp);
+    }
+}
+
+static void test_board_slam_adapter(void)
+{
+    g_lidar_offset_x_m = 0.0f;
+    g_lidar_offset_y_m = 0.0f;
+    g_lidar_yaw_rad = 0.0f;
+    g_timestamp_ready = true;
+    pose_available = true;
+
+    App_BuildMap_Init();
+    App_BuildMap_SetSlamEnabled(true);
+
+    // 第 1 圈建立参考，第 2~3 圈真车微动而里程计故意多报 8 cm + 0.06 rad 误差
+    feed_n10_turn(-1.2f, -1.0f, 0.0f, -1.2f, -1.0f, 0.0f);
+    feed_n10_turn(-1.1f, -1.0f, 0.0f, -1.02f, -0.94f, 0.06f);
+    feed_n10_turn(-1.0f, -1.0f, 0.0f, -0.92f, -0.94f, 0.06f);
+    assert(g_slam_scans >= 3U && g_build_map_frames >= 3U && g_slam_last_score > 0.5f);
+
+    latest_pose = (Stm32PoseDef){.x = -0.92f, .y = -0.94f, .yaw = 0.06f};
+    Pose est;
+    assert(App_BuildMap_GetRobotPose(&est));
+    // map_anchor 锚定在 (-1.2, -1.0)，真车相对移动了 (+0.2, 0.0)
+    assert(hypotf(est.x - 0.2f, est.y - 0.0f) < 0.04f);
+    assert(fabsf(est.theta) < 0.04f);
+
+    // 验证后台接口安全可调，以及导航纯定位模式绝对冻结地图
+    (void)App_BuildMap_BackendHasWork();
+    (void)App_BuildMap_BackendStep();
+    (void)App_BuildMap_CommitBackend();
+
+    App_BuildMap_SetLocalizationMode(true);
+    static Cell frozen_copy[BUILD_MAP_CELLS];
+    memcpy(frozen_copy, g_build_map_cells, sizeof(frozen_copy));
+    feed_n10_turn(-0.9f, -1.0f, 0.0f, -0.80f, -0.92f, 0.06f);
+    assert(memcmp(frozen_copy, g_build_map_cells, sizeof(frozen_copy)) == 0);
+    latest_pose = (Stm32PoseDef){.x = -0.80f, .y = -0.92f, .yaw = 0.06f};
+    assert(App_BuildMap_GetRobotPose(&est));
+    assert(hypotf(est.x - 0.3f, est.y - 0.0f) < 0.04f);
+}
+
 int main(void)
 {
     OnePointDef point = {0, 500};
     App_BuildMap_Init();
+    App_BuildMap_SetSlamEnabled(false);
     Pose robot = {9, 9, 9};
     assert(!App_BuildMap_GetRobotPose(&robot) && robot.x == 9);
     assert(g_build_map.c.width == 300 && g_build_map.c.height == 300);
@@ -145,5 +231,6 @@ int main(void)
     assert(robot.x == 0.5f && robot.y == 2.0f && robot.theta == 1.0f);
     g_timestamp_ready = false;
     assert(!App_BuildMap_GetRobotPose(&robot));
+    test_board_slam_adapter();
     puts("real mapping adapter tests passed");
 }

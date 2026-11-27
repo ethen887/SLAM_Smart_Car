@@ -36,6 +36,7 @@ bool stm32_pose_at(uint64_t time_us, Stm32PoseDef *out)
     return true;
 }
 bool Serial_debug_send(const uint8_t *p, uint32_t n) { (void)p; (void)n; return true; }
+bool App_Vision_Active(void) { return false; }
 bool UsbSerial_can_send(uint32_t n) { (void)n; return connected && path_space; }
 bool UsbSerial_read(uint8_t *b)
 {
@@ -55,7 +56,11 @@ bool UsbSerial_send(const uint8_t *p, uint32_t n)
         memcpy(path_frame, p, n);
         path_length = n;
         ++path_frames;
-    } else assert(p[4] == 'M' && n == 22525);
+    } else if (n == 22525U) {
+        assert(p[4] == 'M');
+    } else {
+        assert(n >= 23U && n == (uint32_t)(23U + 8U * p[20]));
+    }
     return true;
 }
 int R_SCI_B_UART_CallbackSet(void *ctrl, void (*callback)(uart_callback_args_t *), void *a, void *b)
@@ -124,6 +129,7 @@ static void preview(uint8_t seq, float x, float y)
 int main(void)
 {
     App_BuildMap_Init();
+    App_BuildMap_SetSlamEnabled(false);
     const OnePointDef ray = {.distance = 1000};
     const Stm32PoseDef origin = {0};
     App_BuildMap_OnPoints(&ray, 1, &origin);

@@ -83,13 +83,99 @@ def scan(s,pose,rng):
         out.append((float(a),float(min(d,cfg['max_range'])),int(hit and d<=cfg['max_range'])))
     return out
 
+class SlamStats(ct.Structure):
+    _fields_ = [
+        ('scans_processed', ct.c_uint32),
+        ('frontend_accepted', ct.c_uint32),
+        ('frontend_fallback', ct.c_uint32),
+        ('keyframe_count', ct.c_uint32),
+        ('loop_candidates', ct.c_uint32),
+        ('loop_closures', ct.c_uint32),
+        ('map_regenerations', ct.c_uint32),
+        ('last_score', ct.c_float),
+        ('last_hit_ratio', ct.c_float),
+        ('last_eigen_ratio', ct.c_float),
+        ('last_degenerate', ct.c_int),
+    ]
+
+class SlamGrid:
+    """调用纯 C99 libslamcore 的仿真接口，与 Grid 保持一致的生命周期。"""
+    def __init__(self, lib, settings, min_range=0.04, max_range=6.0, loop_closure=True, max_keyframes=256):
+        self.lib = ct.CDLL(str(lib))
+        self.lib.slam_demo_create.argtypes = [ct.POINTER(Config), ct.c_int, ct.c_int, ct.c_float, ct.c_float]
+        self.lib.slam_demo_create.restype = ct.c_void_p
+        self.lib.slam_demo_destroy.argtypes = [ct.c_void_p]
+        self.lib.slam_demo_step_full_scan.argtypes = [ct.c_void_p, Pose, ct.POINTER(Ray), ct.c_int, ct.POINTER(Pose)]
+        self.lib.slam_demo_step_full_scan.restype = ct.c_int
+        self.lib.slam_demo_push_packet.argtypes = [ct.c_void_p, Pose, ct.POINTER(Ray), ct.c_int, ct.POINTER(Pose)]
+        self.lib.slam_demo_push_packet.restype = ct.c_int
+        self.lib.slam_demo_copy_map.argtypes = [ct.c_void_p, ct.POINTER(Cell), ct.c_int]
+        self.lib.slam_demo_copy_map.restype = ct.c_int
+        self.lib.slam_demo_get_stats.argtypes = [ct.c_void_p, ct.POINTER(SlamStats)]
+        self.lib.slam_demo_get_stats.restype = ct.c_int
+        self.cfg = Config(**settings)
+        self.handle = self.lib.slam_demo_create(
+            ct.byref(self.cfg), int(max_keyframes), 1 if loop_closure else 0,
+            float(min_range), float(max_range)
+        )
+        if not self.handle:
+            raise RuntimeError('C SLAM 引擎初始化失败，请检查地图参数')
+    def close(self):
+        if self.handle:
+            self.lib.slam_demo_destroy(self.handle)
+            self.handle = None
+    def __del__(self):
+        self.close()
+    def update(self, odom_pose, rays, frame=0):
+        a = (Ray * len(rays))(*(Ray(*r) for r in rays))
+        out = Pose(*odom_pose)
+        if self.lib.slam_demo_step_full_scan(self.handle, Pose(*odom_pose), a, len(a), ct.byref(out)):
+            raise RuntimeError('C SLAM 前端/后端更新失败')
+        return [float(out.x), float(out.y), float(out.theta)]
+    def push_packet(self, odom_pose, rays):
+        a = (Ray * len(rays))(*(Ray(*r) for r in rays))
+        out = Pose(*odom_pose)
+        rc = self.lib.slam_demo_push_packet(self.handle, Pose(*odom_pose), a, len(a), ct.byref(out))
+        if rc < 0:
+            raise RuntimeError('C SLAM 流式包处理失败')
+        return (rc > 0), [float(out.x), float(out.y), float(out.theta)]
+    def stats(self):
+        st = SlamStats()
+        if self.lib.slam_demo_get_stats(self.handle, ct.byref(st)):
+            raise RuntimeError('C SLAM 统计读取失败')
+        return {k: getattr(st, k) for k, _ in SlamStats._fields_}
+    def snapshot(self):
+        n = self.cfg.width * self.cfg.height
+        a = (Cell * n)()
+        if self.lib.slam_demo_copy_map(self.handle, a, n):
+            raise RuntimeError('C SLAM 地图读取失败')
+        return np.array([(c.log_odds, c.observed, c.last_frame) for c in a],
+                        dtype=[('log', 'f4'), ('seen', 'u1'), ('frame', 'u4')]).reshape(self.cfg.height, self.cfg.width)
+
 class Simulation:
     def __init__(self,s,lib):
+        from pathlib import Path
         if len(s['waypoints'])<2:raise ValueError('至少需要两个航点')
         if any(math.dist(a,b)<1e-8 for a,b in zip(s['waypoints'],s['waypoints'][1:])):raise ValueError('相邻航点不能重合')
         bad=invalid_segments(s)
         if bad:raise ValueError('轨迹与障碍物或场地边界碰撞，请调整红色路径段')
-        self.s=s;self.grid=Grid(lib,s['map']);p=s['waypoints'][0];self.real=[*p,0.];self.estimate=[*p,0.];self.target=1;self.time=0.;self.frame=0;self.distance=0.;self.finished=False;self.rng=np.random.default_rng(s['seed']);self.history=[];self.next_scan=1/s['lidar']['frequency'];rays=scan(s,self.real,self.rng);self.frame=1;self.grid.update(self.estimate,rays,self.frame);self.history.append(dict(time=0.,frame=1,real=self.real.copy(),estimate=self.estimate.copy(),target=self.target,distance=0.,rays=rays,grid=self.grid.snapshot(),finished=False,linear_velocity=0.,angular_velocity=0.))
+        self.s=s; self.use_slam=bool(s.get('slam', False))
+        if self.use_slam:
+            slam_lib = Path(lib).with_name('libslamcore.dll' if Path(lib).suffix == '.dll' else 'libslamcore.so')
+            self.grid = SlamGrid(slam_lib, s['map'],
+                                 min_range=s['lidar']['min_range'],
+                                 max_range=s['lidar']['max_range'],
+                                 loop_closure=bool(s.get('slam_loop_closure', True)))
+        else:
+            self.grid=Grid(lib,s['map'])
+        p=s['waypoints'][0];self.real=[*p,0.];self.odom=[*p,0.];self.estimate=[*p,0.];self.target=1;self.time=0.;self.frame=0;self.distance=0.;self.finished=False;self.rng=np.random.default_rng(s['seed']);self.history=[];self.next_scan=1/s['lidar']['frequency'];rays=scan(s,self.real,self.rng);self.frame=1
+        if self.use_slam:
+            self.estimate = self.grid.update(self.odom, rays, self.frame)
+            st = self.grid.stats()
+        else:
+            self.grid.update(self.estimate,rays,self.frame)
+            st = None
+        self.history.append(dict(time=0.,frame=1,real=self.real.copy(),odom=self.odom.copy(),estimate=self.estimate.copy(),target=self.target,distance=0.,rays=rays,grid=self.grid.snapshot(),finished=False,linear_velocity=0.,angular_velocity=0.,slam_stats=st))
     def step(self):
         s=self.s;dt=s['dt']; old=self.real.copy(); p=s['waypoints'][self.target];dx=p[0]-old[0];dy=p[1]-old[1];dist=math.hypot(dx,dy);desired=math.atan2(dy,dx);diff=(desired-old[2]+math.pi)%(2*math.pi)-math.pi
         if abs(diff)>1e-5:
@@ -102,10 +188,19 @@ class Simulation:
                     if self.target+1<len(s['waypoints']):self.target+=1
                     elif s['closed']:self.target=0
                     else:self.finished=True
-        dtheta=self.real[2]-old[2];travel=math.hypot(self.real[0]-old[0],self.real[1]-old[1]);odom=s['odom']; self.estimate[2]+=dtheta+odom['heading_bias']*dt
+        dtheta=self.real[2]-old[2];travel=math.hypot(self.real[0]-old[0],self.real[1]-old[1]);odom=s['odom']; self.odom[2]+=dtheta+odom['heading_bias']*dt
         travel=travel*odom['scale']+(self.rng.normal(0,odom['noise'])*math.sqrt(dt) if travel and odom['noise'] else 0)
-        self.estimate[0]+=travel*math.cos(self.estimate[2]);self.estimate[1]+=travel*math.sin(self.estimate[2]);self.time+=dt
+        self.odom[0]+=travel*math.cos(self.odom[2]);self.odom[1]+=travel*math.sin(self.odom[2]);self.time+=dt
+        if not self.use_slam:
+            self.estimate = self.odom.copy()
         if self.finished: self.next_scan=min(self.next_scan,self.time)
         if self.time+1e-9>=self.next_scan:
-            rays=scan(s,self.real,self.rng);self.frame+=1;self.grid.update(self.estimate,rays,self.frame);self.next_scan+=1/s['lidar']['frequency']; self.history.append(dict(time=self.time,frame=self.frame,real=self.real.copy(),estimate=self.estimate.copy(),target=self.target,distance=self.distance,rays=rays,grid=self.grid.snapshot(),finished=self.finished,linear_velocity=math.hypot(self.real[0]-old[0],self.real[1]-old[1])/dt,angular_velocity=dtheta/dt))
+            rays=scan(s,self.real,self.rng);self.frame+=1
+            if self.use_slam:
+                self.estimate = self.grid.update(self.odom, rays, self.frame)
+                st = self.grid.stats()
+            else:
+                self.grid.update(self.estimate,rays,self.frame)
+                st = None
+            self.next_scan+=1/s['lidar']['frequency']; self.history.append(dict(time=self.time,frame=self.frame,real=self.real.copy(),odom=self.odom.copy(),estimate=self.estimate.copy(),target=self.target,distance=self.distance,rays=rays,grid=self.grid.snapshot(),finished=self.finished,linear_velocity=math.hypot(self.real[0]-old[0],self.real[1]-old[1])/dt,angular_velocity=dtheta/dt,slam_stats=st))
         return self.finished

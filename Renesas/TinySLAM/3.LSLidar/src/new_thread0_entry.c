@@ -18,6 +18,26 @@
 #include <string.h>
 #include <stdio.h>
 
+/** @brief 低优先级 SLAM 后端任务栈与控制块（静态分配，不占用 FreeRTOS 动态堆）。 */
+static StaticTask_t slam_backend_tcb;
+static StackType_t slam_backend_stack[1024];
+static TaskHandle_t slam_backend_handle;
+
+/**
+ * @brief 低优先级 FreeRTOS 后台任务：按需执行回环检测、2D 位姿图优化与 Back Map 重绘。
+ * @note 优先级为 tskIDLE_PRIORITY，绝不阻塞前台 20 ms 串口接收与底盘控制主循环。
+ */
+static void slam_backend_task(void *pvParameters)
+{
+    (void)pvParameters;
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(50));
+        if (App_BuildMap_BackendHasWork()) {
+            (void)App_BuildMap_BackendStep();
+        }
+    }
+}
+
 /**
  * @brief 主入口：建图 → 自主导航 → 终点视觉，三段靠 g_navigation_state 切换。
  *
@@ -72,6 +92,16 @@ void new_thread0_entry(void *pvParameters)
     App_Navigation_Init();
     App_Vision_Init();
 
+    // 启动低优先级 SLAM 后台闭环与图优化重绘任务
+    slam_backend_handle = xTaskCreateStatic(
+        slam_backend_task,
+        "slam_backend",
+        (uint32_t)(sizeof(slam_backend_stack) / sizeof(StackType_t)),
+        NULL,
+        tskIDLE_PRIORITY,
+        slam_backend_stack,
+        &slam_backend_tcb);
+
     unsigned map_divider = 0;
     TickType_t last_wake = xTaskGetTickCount();
 
@@ -84,10 +114,19 @@ void new_thread0_entry(void *pvParameters)
         uint32_t k230_snapshot = k230_data_snapshot();
         taskEXIT_CRITICAL();
 
-        // 底层解析：雷达解析内部会顺带更新建图，测距数据由此产生
+        // 底层解析：建图态执行 SLAM 建图与关键帧产出，导航/视觉态冻结地图仅持续修正位姿
         Stm32_Data_Process(stm32_snapshot);
+        App_BuildMap_SetLocalizationMode(g_navigation_state != NAV_IDLE);
         LiDar_Data_Process(lidar_snapshot);
         K230_Data_Process(k230_snapshot);
+
+        // 建图态下前台提交已重绘的 Back Map，并按需唤醒低优先级后端任务
+        if (g_navigation_state == NAV_IDLE) {
+            (void)App_BuildMap_CommitBackend();
+            if (slam_backend_handle != NULL && App_BuildMap_BackendHasWork()) {
+                xTaskNotifyGive(slam_backend_handle);
+            }
+        }
 
         // 视觉先跑、导航后跑，避免导航在切到视觉的周期多压制一次制动
         App_Vision_Poll();

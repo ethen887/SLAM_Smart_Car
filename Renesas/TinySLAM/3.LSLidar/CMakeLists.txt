@@ -63,11 +63,10 @@ file(GLOB_RECURSE USER_SOURCES CONFIGURE_DEPENDS
 )
 
 target_sources(${PROJECT_NAME}.elf PRIVATE ${USER_SOURCES})
-target_sources(${PROJECT_NAME}.elf PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../4.LSLidar-stm32/src/Algorithm/map_core.c")
-# 项目头文件目录，供编译器和 C/C++ 索引使用。
+# 项目头文件目录，供编译器和 C/C++ 索引使用（src/Slam/*.c 已由 GLOB_RECURSE 自动纳入）。
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/../4.LSLidar-stm32/src/Algorithm"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Slam"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Application"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Navigation"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Community"
