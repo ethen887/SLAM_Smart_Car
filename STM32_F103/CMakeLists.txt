@@ -65,3 +65,12 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     device
     app
 )
+
+# 每次构建自动同步生成 .hex 与 .bin 烧录文件，避免调试器烧录到过期产物。
+add_custom_command(
+    TARGET ${CMAKE_PROJECT_NAME}
+    POST_BUILD
+    COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${CMAKE_PROJECT_NAME}> ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.hex
+    COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${CMAKE_PROJECT_NAME}> ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.bin
+    COMMENT "Generating STM32_F103.hex and STM32_F103.bin"
+)
