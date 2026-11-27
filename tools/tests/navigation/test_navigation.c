@@ -14,7 +14,7 @@ static uint64_t clock_us;
 static Pose robot;
 static uint8_t rx[32], path_frame[8012], reported_state, reported_error;
 static unsigned rx_pos, rx_len, mode_out, path_frames, path_length;
-static float velocity, angular;
+static float velocity, angular, peak_velocity;
 static void (*uart_callback)(uart_callback_args_t *);
 
 static uint16_t checksum(const uint8_t *p, unsigned n)
@@ -75,6 +75,8 @@ int R_SCI_B_UART_Write(void *ctrl, const uint8_t *f, uint32_t n)
     assert(!tx_complete && n == 18 && checksum(f + 2, 12) == (uint16_t)(f[14] | f[15] << 8));
     mode_out = f[5];
     memcpy(&velocity, f + 6, 4); memcpy(&angular, f + 10, 4);
+    assert(fabsf(velocity) <= 0.55f && fabsf(angular) <= 2.40f);
+    if (mode_out == 1 && velocity > peak_velocity) peak_velocity = velocity;
     if (mode_out != 1) velocity = angular = 0;
     tx_complete = true;
     return 0;
@@ -195,6 +197,7 @@ int main(void)
     assert(g_navigation_state == NAV_RUNNING);
     for (unsigned i = 0; i < 4000 && g_navigation_state == NAV_RUNNING; ++i) step();
     assert(g_navigation_state == NAV_DONE && mode_out == 2 && hypotf(robot.x - 0.9f, robot.y) < 0.04f);
+    assert(peak_velocity > 0.25f);
     connected = true;
     preview(5, 1, 0);
     command(NAV_USB_PATH_RECEIVED, 5, 0, 0, false);

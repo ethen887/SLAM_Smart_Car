@@ -3,7 +3,20 @@
  */
 #include "app_navigation_plan.h"
 #include "app_buildmap.h"
+#include "nav_path_smoother.h"
 #include <math.h>
+#include <string.h>
+
+NavVelocityProfile g_nav_profile;
+NavVelocityProfileConfig g_nav_vel_config;
+static NavPathPoint smooth_orig[NAV_PATH_MAX_POINTS];
+
+static void ensure_vel_config(void)
+{
+    if (g_nav_vel_config.max_linear_vel_mps <= 0.0f) {
+        NavVelocityProfile_DefaultConfig(&g_nav_vel_config);
+    }
+}
 
 #define BODY_RADIUS_M 0.15f /**< 差速底盘按半径 15 cm 的圆形足迹检查。 */
 #define OCCUPIED_LOG_ODDS 1.5f /**< 与原有底盘障碍检查一致。 */
@@ -88,7 +101,27 @@ NavPlanResult App_NavigationPlan_Create(float x, float y, NavPath *path)
     };
     NavPlanResult result = App_GlobalPlan_Create((Pose){x, y, 0.0f}, &costs, &config, &work, path);
     if (result != NAV_PLAN_OK) return result;
+
+    const NavCostmap costmap_view = {
+        .width = g_build_map.c.width,
+        .height = g_build_map.c.height,
+        .resolution = g_build_map.c.resolution,
+        .origin_x = g_build_map.c.origin_x,
+        .origin_y = g_build_map.c.origin_y,
+        .costs = buffers.costs
+    };
+
+    NavPathSmootherConfig smooth_cfg;
+    NavPathSmoother_DefaultConfig(&smooth_cfg);
+    const bool smoothed = NavPathSmoother_Smooth(
+        path, &costmap_view, &smooth_cfg, smooth_orig, NAV_PATH_MAX_POINTS);
+
     NavFootprint check = path_clear(path);
+    if (check != NAV_FOOTPRINT_CLEAR && smoothed && path->count > 0) {
+        /* 若平滑后任何微段触发足迹碰障，回退到原始无碰撞 NavFn 折线。 */
+        memcpy(path->points, smooth_orig, (size_t)path->count * sizeof(NavPathPoint));
+        check = path_clear(path);
+    }
     if (check != NAV_FOOTPRINT_CLEAR) {
         path->count = 0;
         return check == NAV_FOOTPRINT_OUTSIDE ? NAV_PLAN_OUTSIDE_MAP : NAV_PLAN_ENDPOINT_BLOCKED;
@@ -97,6 +130,12 @@ NavPlanResult App_NavigationPlan_Create(float x, float y, NavPath *path)
         NavPathPoint *last = &path->points[path->count - 1];
         const NavPathPoint *previous = last - 1;
         last->theta = atan2f(last->y - previous->y, last->x - previous->x);
+    }
+
+    ensure_vel_config();
+    if (!NavVelocityProfile_Build(path, &costmap_view, &g_nav_vel_config, &g_nav_profile)) {
+        path->count = 0;
+        return NAV_PLAN_INVALID_INPUT;
     }
     return NAV_PLAN_OK;
 }

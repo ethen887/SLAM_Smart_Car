@@ -4,6 +4,7 @@
 #include "app_navigation.h"
 #include "app_navigation_plan.h"
 #include "app_buildmap.h"
+#include "nav_tracker.h"
 #include "nav_usb_protocol.h"
 #include "hal_data.h"
 #include "gpt.h"
@@ -14,13 +15,13 @@
 #define BRAKE_SETTLE_US 300000U /**< 在发送制动后留出停车时间再采集规划起点。 */
 #define START_TOLERANCE_M 0.08f /**< 起步前车体偏离规划起点过大时禁止发车，单位为米。 */
 #define RESUME_TOLERANCE_M 0.25f /**< 运行中暂停后继续运行时，允许车体相对当前跟踪点的最大距离，单位为米。 */
-#define GOAL_TOLERANCE_M 0.035f /**< 终点位置容差，单位为米。 */
-#define TRACK_LOOKAHEAD_M 0.10f /**< 从原始路径上选取近距离跟踪点，单位为米。 */
+#define TRACK_PERIOD_US 18000U /**< 50 Hz 高频跟踪周期（留 2 ms 裕量防止与 20 ms 主循环节拍抖动丢帧），单位为微秒。 */
 #define CLEARANCE_STEP_M 0.02f /**< 视觉防撞测距的采样步长，单位为米。 */
 
 volatile NavigationState g_navigation_state;
 volatile NavigationError g_navigation_error;
 volatile uint32_t g_navigation_plan_us;
+volatile float g_navigation_cmd_v, g_navigation_cmd_w, g_navigation_profile_v;
 
 static unsigned target; /**< 当前跟踪的路径点序号。 */
 static float goal_x, goal_y; /**< 请求目标点在地图中的米制坐标。 */
@@ -32,6 +33,8 @@ static volatile bool tx_busy;
 static bool tx_ready;
 static bool remote_press_seen;
 static uint32_t remote_press_id, remote_press_ms;
+static NavTracker tracker;
+static NavTrackerConfig tracker_cfg;
 
 /** @brief 计算底盘协议使用的 CRC-16/MODBUS。 */
 static uint16_t crc16(const uint8_t *p, unsigned n)
@@ -71,11 +74,30 @@ static void status(void)
                       (unsigned)g_nav_path.count, target);
 }
 
+/** @brief 从速度规划模块同步在线跟踪参数，保证前后一致。 */
+static void sync_tracker_config(void)
+{
+    NavTracker_DefaultConfig(&tracker_cfg);
+    if (g_nav_vel_config.max_linear_vel_mps > 0.0f) {
+        tracker_cfg.max_linear_vel_mps = g_nav_vel_config.max_linear_vel_mps;
+        tracker_cfg.max_angular_vel_rps = g_nav_vel_config.max_angular_vel_rps;
+        tracker_cfg.wheel_track_m = g_nav_vel_config.wheel_track_m;
+        tracker_cfg.max_wheel_linear_mps = g_nav_vel_config.max_wheel_linear_mps;
+        tracker_cfg.max_accel_mps2 = g_nav_vel_config.max_accel_mps2;
+        tracker_cfg.max_decel_mps2 = g_nav_vel_config.max_decel_mps2;
+        tracker_cfg.max_lateral_accel_mps2 = g_nav_vel_config.max_lateral_accel_mps2;
+    }
+}
+
 /** @brief 结束任务并锁存制动状态，后续轮询持续发送制动指令。 */
 static void halt(NavigationState state, NavigationError error)
 {
     g_navigation_state = state;
     g_navigation_error = error;
+    NavTracker_Reset(&tracker);
+    g_navigation_cmd_v = 0.0f;
+    g_navigation_cmd_w = 0.0f;
+    g_navigation_profile_v = 0.0f;
     drive(2, 0, 0);
     status();
 }
@@ -122,6 +144,8 @@ static void handle_command(const NavUsbCommand *request, uint64_t now)
         g_navigation_state = NAV_IDLE;
         g_nav_path.count = 0;
         target = 0;
+        NavTracker_Reset(&tracker);
+        g_navigation_cmd_v = g_navigation_cmd_w = g_navigation_profile_v = 0.0f;
     } else if (g_navigation_state == NAV_RUNNING) {
         g_navigation_error = NAV_BAD_STATE;
     } else {
@@ -190,48 +214,45 @@ void App_Navigation_OnRemoteStart(uint32_t press_id, uint32_t timestamp_ms)
         halt(NAV_STOPPED, NAV_START_MOVED);
         return;
     } else {
+        sync_tracker_config();
+        NavTracker_Reset(&tracker);
+        last_drive = 0;
         g_navigation_state = NAV_RUNNING;
         g_navigation_error = NAV_OK;
     }
     status();
 }
 
-/** @brief 沿原始路径逐点跟踪；制动后需重新规划，避免从任意位置切入旧路径。 */
-static void follow(Pose pose)
+/** @brief 适配层回调：把车载足迹分段检查转换为跟踪器状态枚举。 */
+static NavTrackClearance check_nav_segment(float x0, float y0, float x1, float y1, void *ctx)
 {
-    const NavPathPoint *point = &g_nav_path.points[target];
-    float distance = hypotf(point->x - pose.x, point->y - pose.y);
-    while (target + 1U < (unsigned)g_nav_path.count && distance <= 0.025f) {
-        point = &g_nav_path.points[++target];
-        distance = hypotf(point->x - pose.x, point->y - pose.y);
-    }
-    /** @brief 密集的 NavFn 路径点仅在直连安全时才向前选取。 */
-    while (target + 1U < (unsigned)g_nav_path.count && distance <= TRACK_LOOKAHEAD_M) {
-        const NavPathPoint *next = point + 1;
-        float next_distance = hypotf(next->x - pose.x, next->y - pose.y);
-        if (next_distance > TRACK_LOOKAHEAD_M ||
-            App_NavigationPlan_CheckSegment(pose.x, pose.y, next->x, next->y) != NAV_FOOTPRINT_CLEAR)
-            break;
-        ++target;
-        point = next;
-        distance = next_distance;
-    }
-    bool at_goal = target + 1U == (unsigned)g_nav_path.count && distance <= GOAL_TOLERANCE_M;
-    float desired = at_goal ? point->theta : atan2f(point->y - pose.y, point->x - pose.x);
-    float angle = atan2f(sinf(desired - pose.theta), cosf(desired - pose.theta));
-    float v = at_goal || fabsf(angle) > 0.25f ? 0.0f : fminf(0.13f, 1.3f * distance);
-    float w = fmaxf(-0.6f, fminf(0.6f, 2.0f * angle));
-    float ahead = v > 0.0f ? fminf(distance, 0.20f) : 0.0f;
-    NavFootprint check = App_NavigationPlan_CheckSegment(pose.x, pose.y, pose.x + ahead * cosf(pose.theta),
-                                                        pose.y + ahead * sinf(pose.theta));
-    if (check != NAV_FOOTPRINT_CLEAR) {
-        halt(NAV_STOPPED, check == NAV_FOOTPRINT_OUTSIDE ? NAV_BOUNDARY : NAV_OBSTACLE);
+    (void)ctx;
+    NavFootprint check = App_NavigationPlan_CheckSegment(x0, y0, x1, y1);
+    if (check == NAV_FOOTPRINT_OUTSIDE) return NAV_TRACK_HIT_BOUNDARY;
+    if (check == NAV_FOOTPRINT_BLOCKED) return NAV_TRACK_HIT_OBSTACLE;
+    return NAV_TRACK_CLEAR;
+}
+
+/** @brief 50 Hz 速度自适应 RPP 路径跟踪 + 动态窗口平滑 + 圆弧制动防撞。 */
+static void follow(Pose pose, float dt)
+{
+    NavTrackOutput out;
+    NavTracker_Step(&tracker, &g_nav_path, &g_nav_profile, pose, dt, &target,
+                    check_nav_segment, NULL, &tracker_cfg, &out);
+    g_navigation_profile_v = out.profile_v;
+    g_navigation_cmd_v = out.v;
+    g_navigation_cmd_w = out.w;
+
+    if (out.status == NAV_TRACK_BLOCKED || out.status == NAV_TRACK_OUTSIDE) {
+        halt(NAV_STOPPED, out.status == NAV_TRACK_OUTSIDE ? NAV_BOUNDARY : NAV_OBSTACLE);
         return;
     }
-    if (at_goal && (g_nav_path.count == 1 || fabsf(angle) < 0.12f)) {
+    if (out.status == NAV_TRACK_GOAL_REACHED) {
         target = (unsigned)g_nav_path.count;
         halt(NAV_DONE, NAV_OK);
-    } else if (!drive(1, v, w) && !tx_busy) {
+        return;
+    }
+    if (!drive(1, out.v, out.w) && !tx_busy) {
         halt(NAV_STOPPED, NAV_TRANSPORT);
     }
 }
@@ -240,12 +261,16 @@ void App_Navigation_Init(void)
 {
     NavUsb_Reset();
     g_nav_path.count = 0;
+    g_nav_profile.count = 0;
     g_navigation_state = NAV_IDLE;
     g_navigation_error = NAV_OK;
     g_navigation_plan_us = 0;
+    g_navigation_cmd_v = g_navigation_cmd_w = g_navigation_profile_v = 0.0f;
     target = last_command = sequence = plan_sequence = 0;
     last_drive = last_status = last_preview = 0;
     replay_path = tx_busy = remote_press_seen = false;
+    NavTracker_Reset(&tracker);
+    sync_tracker_config();
     tx_ready = R_SCI_B_UART_CallbackSet(&g_uart0_ctrl, tx_callback, NULL, NULL) == FSP_SUCCESS;
 }
 
@@ -260,7 +285,13 @@ void App_Navigation_Poll(void)
     else if (g_navigation_state == NAV_RUNNING) {
         Pose pose;
         if (!App_BuildMap_GetRobotPose(&pose)) halt(NAV_STOPPED, NAV_NO_POSE);
-        else if (now - last_drive >= 100000U) { last_drive = now; follow(pose); }
+        else if (last_drive == 0U || now - last_drive >= TRACK_PERIOD_US) {
+            float dt = (last_drive > 0U && now > last_drive)
+                           ? (float)(now - last_drive) * 1e-6f
+                           : 0.02f;
+            last_drive = now;
+            follow(pose, dt);
+        }
     } else if (g_navigation_state == NAV_PLANNING) {
         plan_if_stopped(now);
     }

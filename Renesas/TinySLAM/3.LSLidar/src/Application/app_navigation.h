@@ -29,6 +29,9 @@ typedef enum {
 extern volatile NavigationState g_navigation_state; /**< 当前任务状态。 */
 extern volatile NavigationError g_navigation_error; /**< 当前任务错误。 */
 extern volatile uint32_t g_navigation_plan_us; /**< 最近一次完整规划耗时，单位为微秒。 */
+extern volatile float g_navigation_cmd_v; /**< 最近一次下发给底盘的线速度指令（m/s）。 */
+extern volatile float g_navigation_cmd_w; /**< 最近一次下发给底盘的角速度指令（rad/s）。 */
+extern volatile float g_navigation_profile_v; /**< 当前路点速度曲线参考值（m/s）。 */
 
 /** @brief 初始化导航任务及板间串口发送回调。 */
 void App_Navigation_Init(void);

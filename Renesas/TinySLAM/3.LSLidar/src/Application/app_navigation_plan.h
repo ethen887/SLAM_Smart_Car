@@ -5,6 +5,10 @@
 #define APP_NAVIGATION_PLAN_H
 
 #include "app_global_plan.h"
+#include "nav_velocity_profile.h"
+
+extern NavVelocityProfile g_nav_profile;       /**< 最近一次规划生成的前/后向速度曲线。 */
+extern NavVelocityProfileConfig g_nav_vel_config; /**< 车载竞速速度规划参数（可调参）。 */
 
 /** @brief 地图上的圆形车体足迹检查结果。 */
 typedef enum {
