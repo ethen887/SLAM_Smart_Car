@@ -6,8 +6,9 @@
 #include <stdbool.h>
 
 // SA0 接低电平用 0x6A，接高电平用 0x6B；HAL 接口使用左移后的地址。
+// 本车模组 SA0 接高，实测地址为 0x6B（RA6M4 参考工程 25.imu999 同样用 0x6B 才能通信）。
 #ifndef LSM6DSR_I2C_ADDR_7BIT
-#define LSM6DSR_I2C_ADDR_7BIT     0x6AU
+#define LSM6DSR_I2C_ADDR_7BIT     0x6BU
 #endif
 #define LSM6DSR_I2C_ADDR_HAL      (LSM6DSR_I2C_ADDR_7BIT << 1)
 #define LSM6DSR_I2C_TIMEOUT_MS    5U
